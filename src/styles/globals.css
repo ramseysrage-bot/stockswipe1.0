@@ -1,0 +1,650 @@
+/* ============================================================
+   globals.css
+   CSS reset, base layout, fonts, iPhone frame, app loader,
+   screen visibility, tab navigation bar, bottom nav
+   ============================================================ */
+
+/* ── Print / colour overrides (must come first) ── */
+html,
+body {
+    background: #000 !important;
+    margin: 0;
+    padding: 0;
+}
+
+#app-loader,
+#logo-split-screen {
+    background: #000 !important;
+}
+
+#splash-screen {
+    background: #fff !important;
+}
+
+/* ── CSS Reset ── */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ── Base Layout ── */
+html {
+    background: #f4f4f5;
+}
+
+html,
+body {
+    width: 100%;
+    max-width: 430px;
+    margin: 0 auto;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+body {
+    padding-top: env(safe-area-inset-top);
+    background: #000;
+}
+
+/* ── Font Family ── */
+body {
+    font-family: 'DM Sans', sans-serif;
+    background: #fff;
+    position: relative;
+    transform: translateZ(0);
+    /* Crucial: This makes body the containing block for position: fixed elements */
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+}
+
+/* ── iPhone Shell Overlay ── */
+.iphone-frame {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    border: 14px solid #000;
+    border-radius: 54px;
+    box-shadow: inset 0 0 0 6px #fff, inset 0 0 0 7px #e5e5ea;
+}
+
+/* Status Bar Container */
+.status-bar {
+    position: absolute;
+    top: 14px;
+    left: 32px;
+    right: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: #000;
+    z-index: 10000;
+    letter-spacing: -0.2px;
+}
+
+/* Time */
+.time {
+    width: 54px;
+    text-align: center;
+}
+
+/* Dynamic Island */
+.dynamic-island {
+    position: absolute;
+    top: -3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 124px;
+    height: 36px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 10000;
+}
+
+/* Sensors inside Island */
+.dynamic-island::before {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    background: #111;
+    border-radius: 50%;
+    box-shadow: inset -2px -2px 4px rgba(255, 255, 255, 0.1);
+}
+
+.dynamic-island::after {
+    content: '';
+    position: absolute;
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    background: #111;
+    border-radius: 50%;
+}
+
+/* Status Icons */
+.status-icons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 12px;
+}
+
+.icon-signal,
+.icon-wifi,
+.icon-battery {
+    display: flex;
+    align-items: center;
+}
+
+.icon-signal svg {
+    width: 18px;
+    height: 12px;
+}
+
+.icon-wifi svg {
+    width: 16px;
+    height: 12px;
+}
+
+.icon-battery svg {
+    width: 26px;
+    height: 12px;
+}
+
+/* Home Indicator */
+.home-indicator {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 134px;
+    height: 5px;
+    background: #000;
+    border-radius: 100px;
+    z-index: 10000;
+}
+
+/* Side Buttons */
+.btn-mute {
+    position: absolute;
+    left: -18px;
+    top: 115px;
+    width: 4px;
+    height: 32px;
+    background: #1a1a1a;
+    border-radius: 4px 0 0 4px;
+}
+
+.btn-vol-up {
+    position: absolute;
+    left: -18px;
+    top: 175px;
+    width: 4px;
+    height: 62px;
+    background: #1a1a1a;
+    border-radius: 4px 0 0 4px;
+}
+
+.btn-vol-down {
+    position: absolute;
+    left: -18px;
+    top: 255px;
+    width: 4px;
+    height: 62px;
+    background: #1a1a1a;
+    border-radius: 4px 0 0 4px;
+}
+
+.btn-power {
+    position: absolute;
+    right: -18px;
+    top: 200px;
+    width: 4px;
+    height: 95px;
+    background: #1a1a1a;
+    border-radius: 0 4px 4px 0;
+}
+
+/* ── Screen Visibility Rules ── */
+
+/* Feed Screen */
+.feed-screen {
+    position: fixed;
+    inset: 0;
+    background: #f4f4f5;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    overflow: hidden;
+}
+
+.feed-screen.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Watchlist Screen */
+.watchlist-screen {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: translateX(100%);
+}
+
+.watchlist-screen.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+}
+
+/* News Screen */
+.news-screen {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    padding-top: 54px;
+    padding-bottom: 84px;
+}
+
+.news-screen.active {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 250;
+}
+
+/* Friends Screen */
+.friends-screen {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    padding-top: 54px;
+    padding-bottom: 84px;
+}
+
+.friends-screen.active {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 250;
+}
+
+/* Portfolio Screen */
+.portfolio-screen {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    padding-top: 54px;
+    padding-bottom: 84px;
+    overflow: hidden;
+}
+
+.portfolio-screen.active {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 250;
+}
+
+/* Profile Screen */
+.profile-screen {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    padding-top: 54px;
+    padding-bottom: 84px;
+}
+
+.profile-screen.active {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 250;
+}
+
+/* ── Tab Navigation Bar ── */
+
+/* Top Nav */
+.nav-bar {
+    position: absolute;
+    top: 54px;
+    left: 0;
+    right: 0;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 210;
+}
+
+.nav-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 3.5px;
+    text-transform: uppercase;
+    background: linear-gradient(130deg, #00C853, #69F0AE 55%, #00BFA5);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.nav-pill {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    padding: 6px 12px;
+    border-radius: 100px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: #0a0a0a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-right: 20px;
+}
+
+.nav-saved {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    padding: 6px 12px;
+    border-radius: 100px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: #0a0a0a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.saved-count {
+    background: #0a0a0a;
+    color: white;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Alpha Badge ── */
+.alpha-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #0a0a0a;
+    border: 1.5px solid #00C853;
+    box-shadow: 0 0 6px rgba(0, 200, 83, 0.4);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s;
+}
+
+.alpha-badge:active {
+    transform: scale(0.88);
+    box-shadow: 0 0 10px rgba(0, 200, 83, 0.65);
+}
+
+.alpha-badge-char {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 12px;
+    color: #00C853;
+    line-height: 1;
+    display: block;
+}
+
+/* ── Alpha Tab ── */
+.alpha-nav-item {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+}
+
+.alpha-tab-label-wrap {
+    position: relative;
+    width: 44px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.alpha-tab-word {
+    position: absolute;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #00C853 0%, #69F0AE 45%, #00E676 75%, #1DE9B6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    white-space: nowrap;
+    transition: opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1), transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.alpha-tab-sym {
+    position: absolute;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1;
+    background: linear-gradient(135deg, #00C853 0%, #69F0AE 45%, #00E676 75%, #1DE9B6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    transition: opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1), transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Bottom Nav ── */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 84px;
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: 24px;
+    z-index: 500;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(100%);
+    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+}
+
+.bottom-nav.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.nav-item {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: #999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: color 0.1s;
+}
+
+.nav-item svg {
+    stroke: #999;
+    transition: stroke 0.1s;
+}
+
+.nav-item.active {
+    color: #00C853;
+}
+
+.nav-item.active svg {
+    stroke: #00C853;
+}
+
+.nav-icon {
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Responsive: mobile-only fixes ── */
+@media (max-width: 768px) {
+
+    /* Hide desktop iPhone frame shell */
+    .iphone-mockup {
+        display: none !important;
+    }
+
+    /* Full-screen layout — position:fixed prevents Safari bounce/resize */
+    html,
+    body {
+        height: 100% !important;
+        height: 100dvh !important;
+        overflow: hidden !important;
+        position: fixed !important;
+        width: 100% !important;
+        background: white !important;
+    }
+
+    /* Fix expanded card — use dvh so Safari bottom bar is accounted for */
+    .swipe-card.expanded {
+        max-height: calc(100dvh - 120px) !important;
+    }
+
+    /* Quiz container: use dvh, account for fixed Continue button */
+    .quiz-container {
+        height: 100dvh !important;
+        padding-top: max(54px, env(safe-area-inset-top)) !important;
+        padding-bottom: 100px !important;
+    }
+
+    /* Quiz step fills all remaining space below progress dots */
+    .quiz-step {
+        flex: 1 !important;
+        min-height: 0 !important;
+    }
+
+    /* Options container stretches to fill quiz-step */
+    .grid-options {
+        flex: 1 !important;
+        align-content: stretch !important;
+        grid-auto-rows: 1fr !important;
+    }
+
+    .list-options {
+        flex: 1 !important;
+    }
+
+    /* List option cards share available height equally */
+    .list-options .opt-card {
+        flex: 1 !important;
+        padding: 20px 16px !important;
+    }
+
+    /* Continue / Back button row: fixed to bottom, above home indicator */
+    .quiz-footer {
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        padding: 12px 24px !important;
+        padding-bottom: calc(env(safe-area-inset-bottom) + 12px) !important;
+        background: #fff !important;
+        border-top: 1px solid #f0f0f0 !important;
+    }
+
+    /* ── Safe area / PWA fixes ── */
+
+    /* Feed-screen fills behind status bar (black-translucent mode) */
+    .feed-screen {
+        padding-top: env(safe-area-inset-top) !important;
+    }
+
+    /* Top nav: remove fake-frame offset, use real safe area instead */
+    .nav-bar {
+        top: 0 !important;
+        padding-top: calc(env(safe-area-inset-top) + 12px) !important;
+        height: auto !important;
+        min-height: 44px !important;
+        padding-bottom: 12px !important;
+    }
+
+    /* Card stack: shift down to match new nav-bar height */
+    .card-stack {
+        top: calc(env(safe-area-inset-top) + 80px) !important;
+    }
+
+    /* Bottom nav: sit above iPhone home indicator */
+    .bottom-nav {
+        height: auto !important;
+        padding-top: 12px !important;
+        padding-bottom: calc(env(safe-area-inset-bottom) + 16px) !important;
+    }
+
+    /* Watchlist, friends, news, profile screens: same safe-area treatment */
+    .watchlist-screen,
+    .friends-screen,
+    .news-screen,
+    .profile-screen {
+        padding-top: env(safe-area-inset-top) !important;
+    }
+}
