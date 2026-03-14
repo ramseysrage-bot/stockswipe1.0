@@ -1,5 +1,5 @@
         async function fetchWithFallback(yahooUrl) {
-            const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(yahooUrl));
+            const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(yahooUrl));
             if (!r.ok) throw new Error('proxy failed');
             return await r.json();
         }
@@ -225,11 +225,13 @@
                         .eq('user_id', currentUser.id);
                     // seenTickers stays empty — fresh 7
                 } else {
-                    // Batch still active — load what's been passed so far
+                    // Batch still active — load only PASSED stocks (saved stocks
+                    // are excluded from the feed via savedSet but don't consume daily slots)
                     const { data: seen } = await supabaseClient
                         .from('seen_stocks')
                         .select('ticker')
-                        .eq('user_id', currentUser.id);
+                        .eq('user_id', currentUser.id)
+                        .eq('action', 'passed');
                     console.log('SEEN_STOCKS on refresh:', (seen || []).length, (seen || []).map(r => r.ticker));
                     (seen || []).forEach(r => seenTickers.add(r.ticker));
                 }
