@@ -609,7 +609,6 @@
             } catch (err) {
                 console.error("Feed error:", err);
             }
-            initIndexCards();
         }
 
         function fetchTopCardPrice() {
@@ -1184,8 +1183,6 @@
         function expandCard() {
             if (!topCard || isExpanded) return;
             isExpanded = true;
-            const _idxRowExp = document.getElementById('index-cards-row');
-            if (_idxRowExp) _idxRowExp.style.display = 'none';
             topCard.style.transition = 'transform 0.4s cubic-bezier(.34, 1.56, .64, 1), opacity 0.4s ease, box-shadow 0.4s ease, border-radius 0.4s ease, max-height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), padding 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
             topCard.style.overflow = 'scroll';
             topCard.style.overflowY = 'scroll';
@@ -1386,9 +1383,6 @@
         function collapseCard() {
             if (!topCard || !isExpanded) return;
             isExpanded = false;
-            const _idxRowCol = document.getElementById('index-cards-row');
-            const _feedCol   = document.getElementById('feed');
-            if (_idxRowCol && _feedCol && _feedCol.classList.contains('active')) _idxRowCol.style.display = 'block';
             topCard.style.transition = 'transform 0.4s cubic-bezier(.34, 1.56, .64, 1), opacity 0.4s ease, box-shadow 0.4s ease, border-radius 0.4s ease, max-height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), padding 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
             topCard.style.transform = 'translateY(0) scale(1) rotate(0)';
             topCard.style.overflow = 'hidden';

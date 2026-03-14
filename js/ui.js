@@ -1,8 +1,4 @@
         function navTo(tab) {
-            // Hide index pill row immediately — before any transition begins
-            const _idxRow = document.getElementById('index-cards-row');
-            if (_idxRow) _idxRow.style.display = 'none';
-
             // Update active state on nav icons
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.getElementById('nav-btn-' + tab).classList.add('active');
@@ -15,7 +11,7 @@
             document.getElementById('profile-scene').classList.remove('active');
             document.getElementById('portfolio-scene').classList.remove('active');
 
-            if (tab === 'home') { document.getElementById('feed').classList.add('active'); if (!isExpanded && _idxRow) _idxRow.style.display = 'block'; }
+            if (tab === 'home') { document.getElementById('feed').classList.add('active'); }
             if (tab === 'news') {
                 document.getElementById('news-scene').classList.add('active');
                 loadWatchlistNews();
@@ -652,13 +648,27 @@
             if (loadEl) { loadEl.style.display = 'flex'; loadEl.innerText = 'Loading…'; }
             canvasEl.style.display = 'none';
 
-            // Fetch via edge function (server-side, no CORS fallback needed)
+            // Fetch via corsproxy (same pattern as rest of app)
             const p = _rangeParams[range];
+            const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${p.range}&interval=${p.interval}&_=${Date.now()}`;
             try {
-                const json = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(ticker) + '&mode=chart&range=' + p.range + '&interval=' + p.interval).then(r => r.json());
-                const d = json[ticker];
-                if (!d || !d.points || d.points.length === 0) throw new Error('Empty series');
-                const points = d.points;
+                const json = await fetchWithFallback(yahooUrl);
+                const result = json?.chart?.result?.[0];
+                if (!result) throw new Error('No data');
+
+                const timestamps = result.timestamp || [];
+                const closes = result.indicators?.quote?.[0]?.close || [];
+
+                // Build clean point array — skip nulls
+                const points = [];
+                for (let i = 0; i < timestamps.length; i++) {
+                    if (closes[i] != null) {
+                        points.push({ t: timestamps[i] * 1000, y: closes[i] });
+                    }
+                }
+
+                if (points.length === 0) throw new Error('Empty series');
+
                 _expChartCache[cacheKey] = points;
                 renderChart(points);
             } catch (err) {
@@ -1034,12 +1044,18 @@
             }
             const p = _spkRangeParams[range];
             if (!p) return;
+            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${p.range}&interval=${p.interval}&_=${Date.now()}`;
             try {
-                const json = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(ticker) + '&mode=chart&range=' + p.range + '&interval=' + p.interval).then(r => r.json());
-                const d = json[ticker];
-                if (!d || !d.points || d.points.length < 2) return;
-                const points = d.points.map(pt => pt.y);
-                const timestamps = d.points.map(pt => pt.t);
+                const json = await fetchWithFallback(url);
+                const result = json?.chart?.result?.[0];
+                if (!result) return;
+                const ts = result.timestamp || [];
+                const cl = result.indicators?.quote?.[0]?.close || [];
+                const points = [], timestamps = [];
+                for (let i = 0; i < ts.length; i++) {
+                    if (cl[i] != null) { points.push(cl[i]); timestamps.push(ts[i] * 1000); }
+                }
+                if (points.length < 2) return;
                 _spkCache[cacheKey] = { points, timestamps };
                 _renderSparkline(ticker, points, timestamps, range);
             } catch (err) {
@@ -1277,56 +1293,6 @@
             }
         }, { passive: true });
 
-        // ─── Market Index Pills ───
-        const INDEX_TICKERS = [
-            { ticker: '^GSPC', label: 'S&P 500' },
-            { ticker: '^DJI',  label: 'Dow'     },
-            { ticker: '^IXIC', label: 'NASDAQ'  },
-            { ticker: '^VIX',  label: 'VIX'     }
-        ];
-
-        function idxSafeId(ticker) {
-            return ticker.replace(/[^a-zA-Z0-9]/g, '_');
-        }
-
-        function _applyIndexCardData(ticker, d) {
-            const sid = idxSafeId(ticker);
-            const changeEl = document.getElementById('idx-change-' + sid);
-            if (!changeEl) return;
-            try {
-                if (!d || d.price == null) throw new Error('no data');
-                const price = d.price;
-                const prev  = d.prev || price;
-                const pct   = ((price - prev) / prev * 100);
-                const isPos = pct >= 0;
-                changeEl.textContent = (isPos ? '+' : '') + pct.toFixed(2) + '%';
-                changeEl.className   = 'idx-pill-change ' + (isPos ? 'green' : 'red');
-            } catch {
-                changeEl.textContent = '--';
-                changeEl.className   = 'idx-pill-change';
-            }
-        }
-
-        function _showIndexPillRow() {
-            const row  = document.getElementById('index-cards-row');
-            const feed = document.getElementById('feed');
-            if (row && feed && feed.classList.contains('active') && !isExpanded) {
-                row.style.display = 'block';
-            }
-        }
-
-        async function initIndexCards() {
-            _showIndexPillRow();
-            try {
-                const tickers = INDEX_TICKERS.map(i => i.ticker).join(',');
-                const data = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(tickers) + '&mode=price&interval=5m&range=1d').then(r => r.json());
-                INDEX_TICKERS.forEach(item => _applyIndexCardData(item.ticker, data[item.ticker]));
-            } catch {
-                INDEX_TICKERS.forEach(item => _applyIndexCardData(item.ticker, null));
-            }
-            if (window._indexRefreshInterval) clearInterval(window._indexRefreshInterval);
-            window._indexRefreshInterval = setInterval(() => initIndexCards(), 60000);
-        }
         // ─── Alpha Screen ───
         let _alphaCrossfadeTimer = null;
         let _alphaTaglineTimer = null;

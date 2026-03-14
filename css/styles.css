@@ -3658,59 +3658,6 @@
                 padding-top: env(safe-area-inset-top) !important;
             }
         }
-        /* ─── Market Index Pill Row ─── */
-        #index-cards-row {
-            position: fixed;
-            bottom: 92px;
-            left: 0;
-            right: 0;
-            padding: 5px 16px 4px;
-            z-index: 250;
-            pointer-events: none;
-            display: none;
-        }
-        .index-pills-label {
-            font-family: 'DM Sans', sans-serif;
-            font-size: 9px;
-            font-weight: 600;
-            color: #aaa;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-        .index-pills-row {
-            display: flex;
-            gap: 6px;
-            overflow-x: auto;
-            scrollbar-width: none;
-            -webkit-overflow-scrolling: touch;
-        }
-        .index-pills-row::-webkit-scrollbar { display: none; }
-        .index-pill {
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            background: rgba(255,255,255,0.9);
-            border: 1px solid #ebebeb;
-            border-radius: 20px;
-            padding: 4px 10px;
-            white-space: nowrap;
-        }
-        .index-pill-label {
-            font-family: 'DM Sans', sans-serif;
-            font-size: 11px;
-            color: #888;
-        }
-        .idx-pill-change {
-            font-family: 'DM Mono', monospace;
-            font-size: 11px;
-            font-weight: 600;
-            color: #888;
-        }
-        .idx-pill-change.green { color: #00C853; }
-        .idx-pill-change.red   { color: #E53935; }
-
         /* ─── Alpha Badge ─── */
         .alpha-badge {
             width: 22px;
