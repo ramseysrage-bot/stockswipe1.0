@@ -668,7 +668,9 @@
             if (!unloaded.length) return;
             try {
                 const tickers = unloaded.map(s => s.ticker).join(',');
-                const data = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(tickers) + '&mode=price&interval=1d&range=1d').then(r => r.json());
+                const data = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(tickers) + '&mode=price&interval=1d&range=1d', {
+                    headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_JWT, 'apikey': SUPABASE_ANON_JWT }
+                }).then(r => r.json());
                 for (const stock of unloaded) {
                     const d = data[stock.ticker];
                     if (d && d.price != null) {
