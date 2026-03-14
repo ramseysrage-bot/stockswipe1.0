@@ -788,9 +788,18 @@
                 dateDiv.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#aaa;flex-shrink:0;';
                 dateDiv.textContent = pf.date;
 
+                const trash = document.createElement('div');
+                trash.title = 'Delete portfolio';
+                trash.style.cssText = 'cursor:pointer;color:#ccc;padding:3px;flex-shrink:0;line-height:1;border-radius:6px;transition:color 0.15s;';
+                trash.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+                trash.addEventListener('mouseenter', () => trash.style.color = '#E53935');
+                trash.addEventListener('mouseleave', () => trash.style.color = '#ccc');
+                trash.onclick = (e) => { e.stopPropagation(); deleteSavedPortfolio(pf.id, item); };
+
                 headerRow.appendChild(nameDiv);
                 headerRow.appendChild(pencil);
                 headerRow.appendChild(plane);
+                headerRow.appendChild(trash);
                 headerRow.appendChild(dateDiv);
 
                 // Metrics
@@ -848,6 +857,38 @@
                 if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
                 if (e.key === 'Escape') { input.value = currentName; input.blur(); }
             });
+        }
+
+        async function deleteSavedPortfolio(id, itemEl) {
+            if (!currentUser) return;
+            // Fade out the card immediately for snappy feel
+            itemEl.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+            itemEl.style.opacity = '0';
+            itemEl.style.transform = 'scale(0.95)';
+            const { error } = await supabaseClient
+                .from('saved_portfolios')
+                .delete()
+                .eq('id', id)
+                .eq('user_id', currentUser.id);
+            if (error) {
+                itemEl.style.opacity = '1';
+                itemEl.style.transform = '';
+                showToast('Could not delete portfolio. Please try again.');
+                return;
+            }
+            _savedPortfolios = _savedPortfolios.filter(p => p.id !== id);
+            const badge = document.getElementById('pf-saved-badge');
+            if (badge) {
+                badge.textContent = _savedPortfolios.length;
+                badge.style.display = _savedPortfolios.length > 0 ? 'block' : 'none';
+            }
+            setTimeout(() => {
+                itemEl.remove();
+                const list = document.getElementById('pf-saved-list');
+                if (list && _savedPortfolios.length === 0) {
+                    list.innerHTML = `<div style="text-align:center;padding:48px 0;font-family:'DM Sans',sans-serif;color:#aaa;font-size:14px;">No saved portfolios yet.<br>Build and save your first one!</div>`;
+                }
+            }, 200);
         }
 
         function openPortfolioShareModal(pfId) {
