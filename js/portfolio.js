@@ -500,7 +500,7 @@
             // Disclaimer from edge function
             const disc = document.createElement('div');
             disc.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#bbb;text-align:center;line-height:1.6;padding:16px 24px;';
-            disc.innerHTML = '⚠️ ' + (data.disclaimer || 'Past performance is not indicative of future results. StockSwype does not provide financial advice.');
+            disc.innerHTML = '⚠️ ' + (data.disclaimer || 'Assumes daily rebalancing to target weights. Excludes transaction costs, taxes, and slippage — real returns will differ. Past performance is not indicative of future results. StockSwype does not provide financial advice.');
             body.appendChild(disc);
 
             // Draw charts after DOM settles
@@ -636,34 +636,50 @@
             });
         }
 
-        function savePfPortfolio() {
+        async function savePfPortfolio() {
+            if (isGuest) { showToast('Sign in to save portfolios.'); return; }
             const tickers = [..._pfSelected];
             const entry = {
-                id: Date.now(),
+                user_id:        currentUser.id,
                 tickers,
-                allocs: Object.assign({}, _pfAllocs),
-                name: null,
-                date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                totalReturn:    _lastPfAnalysis?.stats?.totalReturn    ?? 0,
-                annReturn:      _lastPfAnalysis?.stats?.annualisedReturn ?? 0,
+                allocs:         Object.assign({}, _pfAllocs),
+                name:           null,
+                date:           new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                total_return:   _lastPfAnalysis?.stats?.totalReturn    ?? 0,
+                ann_return:     _lastPfAnalysis?.stats?.annualisedReturn ?? 0,
                 volatility:     _lastPfAnalysis?.stats?.volatility     ?? 0,
                 alpha:          _lastPfAnalysis?.stats?.alpha          ?? 0,
                 sharpe:         _lastPfAnalysis?.stats?.sharpe         ?? 0,
                 sortino:        _lastPfAnalysis?.stats?.sortino        ?? 0,
-                maxDrawdown:    _lastPfAnalysis?.stats?.maxDrawdown    ?? 0,
-                chartDates:     _lastPfAnalysis?.dates                 ?? [],
-                portfolioCurve: _lastPfAnalysis?.portfolioCurve       ?? [],
-                spCurve:        _lastPfAnalysis?.spCurve               ?? [],
+                max_drawdown:   _lastPfAnalysis?.stats?.maxDrawdown    ?? 0,
+                chart_dates:    _lastPfAnalysis?.dates                 ?? [],
+                portfolio_curve: _lastPfAnalysis?.portfolioCurve      ?? [],
+                sp_curve:       _lastPfAnalysis?.spCurve               ?? [],
                 disclaimer:     _lastPfAnalysis?.disclaimer            ?? '',
             };
-            _savedPortfolios.unshift(entry);
+
+            const btn = document.querySelector('#pf-save-btn-wrap button');
+            if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+
+            const { data: saved, error } = await supabaseClient
+                .from('saved_portfolios')
+                .insert(entry)
+                .select()
+                .single();
+
+            if (error) {
+                if (btn) { btn.textContent = 'Save Portfolio'; btn.disabled = false; }
+                showToast('Could not save portfolio. Please try again.');
+                return;
+            }
+
+            // Normalise db row to local format
+            _savedPortfolios.unshift(_dbRowToLocal(saved));
             const badge = document.getElementById('pf-saved-badge');
             if (badge) { badge.textContent = _savedPortfolios.length; badge.style.display = 'block'; }
-            const btn = document.querySelector('#pf-save-btn-wrap button');
-            if (btn) { btn.textContent = 'Saved ✓'; btn.disabled = true; btn.style.color = '#aaa'; btn.style.border = '2px solid #e0e0e0'; btn.style.boxShadow = 'none'; }
+            if (btn) { btn.textContent = 'Saved ✓'; btn.style.color = '#aaa'; btn.style.border = '2px solid #e0e0e0'; btn.style.boxShadow = 'none'; }
             showToast('Portfolio saved!');
 
-            // Return to hub automatically so user doesn't have to back out manually
             setTimeout(() => {
                 _pfSelected.clear();
                 _pfAllocs = {};
@@ -671,21 +687,70 @@
                 const hub = document.getElementById('pf-hub');
                 if (hub) {
                     hub.style.animation = 'none';
-                    void hub.offsetWidth; // force reflow
+                    void hub.offsetWidth;
                     hub.style.animation = 'pfSlideHome 0.2s linear forwards';
                 }
             }, 800);
         }
 
-        function openPfSaved() {
+        // Convert a Supabase db row to the local portfolio object shape
+        function _dbRowToLocal(row) {
+            return {
+                id:             row.id,
+                tickers:        row.tickers,
+                allocs:         row.allocs,
+                name:           row.name,
+                date:           row.date,
+                totalReturn:    row.total_return,
+                annReturn:      row.ann_return,
+                volatility:     row.volatility,
+                alpha:          row.alpha,
+                sharpe:         row.sharpe,
+                sortino:        row.sortino,
+                maxDrawdown:    row.max_drawdown,
+                chartDates:     row.chart_dates    || [],
+                portfolioCurve: row.portfolio_curve || [],
+                spCurve:        row.sp_curve        || [],
+                disclaimer:     row.disclaimer      || '',
+            };
+        }
+
+        async function openPfSaved() {
             pfShowStep('pf-saved');
             const list = document.getElementById('pf-saved-list');
             if (!list) return;
+
+            if (isGuest || !currentUser) {
+                list.innerHTML = `<div style="text-align:center;padding:48px 0;font-family:'DM Sans',sans-serif;color:#aaa;font-size:14px;">Sign in to view saved portfolios.</div>`;
+                return;
+            }
+
+            list.innerHTML = `<div style="text-align:center;padding:48px 0;font-family:'DM Sans',sans-serif;color:#aaa;font-size:14px;">Loading…</div>`;
+
+            const { data: rows, error } = await supabaseClient
+                .from('saved_portfolios')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                list.innerHTML = `<div style="text-align:center;padding:48px 0;font-family:'DM Sans',sans-serif;color:#aaa;font-size:14px;">Could not load portfolios.</div>`;
+                return;
+            }
+
+            _savedPortfolios = (rows || []).map(_dbRowToLocal);
+
+            const badge = document.getElementById('pf-saved-badge');
+            if (badge) {
+                badge.textContent = _savedPortfolios.length;
+                badge.style.display = _savedPortfolios.length > 0 ? 'block' : 'none';
+            }
+
+            list.innerHTML = '';
             if (_savedPortfolios.length === 0) {
                 list.innerHTML = `<div style="text-align:center;padding:48px 0;font-family:'DM Sans',sans-serif;color:#aaa;font-size:14px;">No saved portfolios yet.<br>Build and save your first one!</div>`;
                 return;
             }
-            list.innerHTML = '';
             _savedPortfolios.forEach(pf => {
                 const item = document.createElement('div');
                 item.style.cssText = 'background:#f8f8f8;border-radius:16px;padding:16px;cursor:pointer;transition:transform 0.12s ease;';
@@ -762,10 +827,18 @@
             input.focus();
             input.select();
             let committed = false;
-            const commit = () => {
+            const commit = async () => {
                 if (committed) return;
                 committed = true;
-                pf.name = input.value.trim() || currentName;
+                const newName = input.value.trim() || currentName;
+                pf.name = newName;
+                if (!isGuest && currentUser) {
+                    await supabaseClient
+                        .from('saved_portfolios')
+                        .update({ name: newName })
+                        .eq('id', pf.id)
+                        .eq('user_id', currentUser.id);
+                }
                 openPfSaved();
             };
             input.addEventListener('blur', commit);
@@ -948,7 +1021,7 @@
             // Disclaimer
             const disc = document.createElement('div');
             disc.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#bbb;text-align:center;line-height:1.6;padding:16px 24px;';
-            disc.innerHTML = '⚠️ ' + (pf.disclaimer || 'Past performance is not indicative of future results. StockSwype does not provide financial advice.');
+            disc.innerHTML = '⚠️ ' + (pf.disclaimer || 'Assumes daily rebalancing to target weights. Excludes transaction costs, taxes, and slippage — real returns will differ. Past performance is not indicative of future results. StockSwype does not provide financial advice.');
             body.appendChild(disc);
 
             // Draw charts
@@ -1106,7 +1179,7 @@
             // Disclaimer
             const disc = document.createElement('div');
             disc.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#bbb;text-align:center;line-height:1.6;padding:16px 24px;';
-            disc.innerHTML = '⚠️ ' + (pf.disclaimer || 'Past performance is not indicative of future results. This is a read-only view of a shared portfolio. StockSwype does not provide financial advice.');
+            disc.innerHTML = '⚠️ ' + (pf.disclaimer || 'Past performance is not indicative of future results. Assumes daily rebalancing to target weights. Excludes transaction costs, taxes, and slippage — real returns will differ. Past performance is not indicative of future results. StockSwype does not provide financial advice.');
             body.appendChild(disc);
 
             // Draw charts
