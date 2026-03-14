@@ -7,6 +7,7 @@
         let _pfSuccessTimer = null;
         let _pfLoadTimer = null;
         let _savedPortfolios = [];
+        let _lastPfAnalysis = null; // stores full edge function response for save/detail views
 
         function pfShowStep(step) {
             ['pf-hub', 'pf-picker', 'pf-sliders', 'pf-results', 'pf-saved', 'pf-saved-detail'].forEach(id => {
@@ -75,7 +76,7 @@
                         <div class="pf-ticker">${s.ticker}</div>
                         <div class="pf-name">${s.name || ''}</div>
                     </div>
-                    <div class="pf-price-tag">${s.price ? '$' + parseFloat(s.price).toFixed(2) : ''}</div>
+                    <div class="pf-price-tag">${(s.price != null && !isNaN(parseFloat(s.price))) ? '$' + parseFloat(s.price).toFixed(2) : '--'}</div>
                 `;
                 row.onclick = () => pfToggleStock(s.ticker);
                 list.appendChild(row);
@@ -196,23 +197,57 @@
             pfRenderSliders();
         }
 
-        function pfMarketCapWeight() {
-            // Use saved price as a rough size proxy; normalise to 100%
+        async function pfMarketCapWeight() {
+            const btn = document.querySelector('#pf-sliders button[onclick="pfMarketCapWeight()"]');
+            const prevText = btn ? btn.textContent : 'Market Cap';
+            if (btn) { btn.textContent = 'Loading…'; btn.disabled = true; }
+
             const tickers = [..._pfSelected];
-            const prices = tickers.map(t => {
-                const s = savedStocks.find(x => x.ticker === t);
-                return Math.max(1, parseFloat(s && s.price ? s.price : 50));
+            const fetchResults = await Promise.allSettled(
+                tickers.map(t =>
+                    fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${t}&token=${FINNHUB_KEY}`)
+                        .then(r => r.json())
+                        .then(d => ({ ticker: t, mcap: d.marketCapitalization || null }))
+                        .catch(() => ({ ticker: t, mcap: null }))
+                )
+            );
+
+            const mcaps = {};
+            const failed = [];
+            fetchResults.forEach(r => {
+                if (r.status === 'fulfilled') {
+                    if (r.value.mcap) mcaps[r.value.ticker] = r.value.mcap;
+                    else failed.push(r.value.ticker);
+                }
             });
-            const sum = prices.reduce((a, b) => a + b, 0);
-            const raw = prices.map(p => Math.round((p / sum) * 100));
-            const drift = 100 - raw.reduce((a, b) => a + b, 0);
-            raw[0] += drift;
-            tickers.forEach((t, i) => { _pfAllocs[t] = raw[i]; });
+
+            failed.forEach(t => showToast(`Could not load market cap for ${t}, using equal weight instead.`));
+
+            const eqWeight = parseFloat((100 / tickers.length).toFixed(1));
+            const totalMcap = tickers.reduce((s, t) => s + (mcaps[t] || 0), 0);
+            tickers.forEach(t => {
+                if (mcaps[t] && totalMcap > 0) {
+                    _pfAllocs[t] = parseFloat((mcaps[t] / totalMcap * 100).toFixed(1));
+                } else {
+                    _pfAllocs[t] = eqWeight;
+                }
+            });
+            // Adjust rounding drift so total stays exactly 100
+            const total = tickers.reduce((s, t) => s + _pfAllocs[t], 0);
+            const drift = parseFloat((100 - total).toFixed(1));
+            if (drift !== 0) _pfAllocs[tickers[0]] = parseFloat((_pfAllocs[tickers[0]] + drift).toFixed(1));
+
             pfRenderSliders();
+            if (btn) { btn.textContent = prevText; btn.disabled = false; }
         }
 
-        function openPfResults() {
+        async function openPfResults() {
             const tickers = [..._pfSelected];
+            const allocations = tickers.map(t => _pfAllocs[t] || 0);
+
+            // Disable the Analyse button immediately
+            const analyseBtn = document.getElementById('pf-analyse-btn');
+            if (analyseBtn) { analyseBtn.textContent = 'Analysing…'; analyseBtn.disabled = true; }
 
             // Show portfolio loading screen over the current step
             const loadEl = document.getElementById('pf-loading');
@@ -239,14 +274,41 @@
                 });
             }
 
-            _pfLoadTimer = setTimeout(() => {
+            // Start the edge function call in parallel with the loading animation
+            let analysisData = null;
+            let analysisError = null;
+            const analysePromise = supabaseClient.functions.invoke('analyse-portfolio', {
+                body: { tickers, allocations, period: '1y' }
+            }).then(({ data, error }) => {
+                analysisData = data;
+                analysisError = error;
+            }).catch(err => {
+                analysisError = err;
+            });
+
+            _pfLoadTimer = setTimeout(async () => {
                 _pfLoadTimer = null;
+
+                // Wait for the edge function if it hasn't resolved yet
+                await analysePromise;
+
+                // Re-enable button regardless of outcome
+                if (analyseBtn) { analyseBtn.textContent = 'Analyse'; analyseBtn.disabled = false; }
+
+                if (analysisError || !analysisData) {
+                    // Hide loading overlay and bail out
+                    if (loadEl) loadEl.style.display = 'none';
+                    showToast('Could not analyse portfolio. Please try again.');
+                    return;
+                }
+
+                _lastPfAnalysis = analysisData;
                 pfShowStep('pf-results'); // also hides pf-loading
-                _pfRenderResults(tickers);
+                _pfRenderResults(tickers, analysisData);
             }, 2900);
         }
 
-        function _pfRenderResults(tickers) {
+        function _pfRenderResults(tickers, data) {
             // Reset save button
             const saveWrap = document.getElementById('pf-save-btn-wrap');
             if (saveWrap) {
@@ -262,25 +324,35 @@
             const body = document.getElementById('pf-results-body');
             body.innerHTML = '';
 
-            // --- Mock data ---
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const mockPortfolio = [100, 104, 109, 107, 115, 121, 118, 126, 132, 128, 138, 143];
-            const mockBenchmark = [100, 102, 105, 103, 108, 112, 110, 115, 119, 116, 123, 127];
-            const totalReturn = 43.2;
-            const annReturn = 36.8;
-            const maxDrawdown = -9.4;
-            const volatility = 14.7;
-            const benchReturn = parseFloat((mockBenchmark[11] - 100).toFixed(1));
-            const alpha = parseFloat((totalReturn - benchReturn).toFixed(1));
-            const sharpe = '2.2';
-            const sortino = '2.8';
-            const riskLabel = volatility < 12 ? 'Low' : volatility < 20 ? 'Medium' : 'High';
-            const riskColor = riskLabel === 'Low' ? '#00C853' : riskLabel === 'Medium' ? '#FF9800' : '#E53935';
+            // --- Real data from edge function ---
+            const totalReturn  = parseFloat(data.stats.totalReturn.toFixed(1));
+            const annReturn    = parseFloat(data.stats.annualisedReturn.toFixed(1));
+            const volatility   = parseFloat(data.stats.volatility.toFixed(1));
+            const alpha        = parseFloat(data.stats.alpha.toFixed(1));
+            const sharpe       = parseFloat(data.stats.sharpe);
+            const sortino      = parseFloat(data.stats.sortino);
+            const maxDrawdown  = parseFloat(data.stats.maxDrawdown.toFixed(1));
+            const riskLabel    = volatility < 12 ? 'Low' : volatility < 20 ? 'Medium' : 'High';
+            const riskColor    = riskLabel === 'Low' ? '#00C853' : riskLabel === 'Medium' ? '#FF9800' : '#E53935';
+            const retColor     = totalReturn >= 0 ? '#00C853' : '#E53935';
+            const annRetColor  = annReturn >= 0 ? '#00C853' : '#E53935';
+            const alphaColor   = alpha >= 0 ? '#00C853' : '#E53935';
+            const sharpeColor  = sharpe > 1 ? '#00C853' : sharpe >= 0 ? '#FF9800' : '#E53935';
+            const sortinoColor = sortino > 1 ? '#00C853' : sortino >= 0 ? '#FF9800' : '#E53935';
+
+            // Build sparse x-axis labels from dates (month abbreviation every ~30 points)
+            const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const chartLabels = data.dates.map((d, i) => {
+                if (i === 0 || i % 30 === 0 || i === data.dates.length - 1) {
+                    return MONTHS[new Date(d).getUTCMonth()];
+                }
+                return '';
+            });
 
             // --- Success Overlay ---
             const successEl = document.getElementById('pf-success');
             if (successEl) {
-                document.getElementById('pf-s-val1').textContent = '+' + totalReturn + '%';
+                document.getElementById('pf-s-val1').textContent = (totalReturn >= 0 ? '+' : '') + totalReturn + '%';
                 document.getElementById('pf-s-val2').textContent = volatility + '%';
                 document.getElementById('pf-s-val3').textContent = (alpha >= 0 ? '+' : '') + alpha + '%';
                 ['pf-s-stat1', 'pf-s-stat2', 'pf-s-stat3'].forEach(id => {
@@ -351,16 +423,16 @@
             // Stats row
             const statsWrap = document.createElement('div');
             statsWrap.innerHTML = `
-                <div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#0a0a0a;margin-bottom:12px;">Performance (12-month backtest)</div>
+                <div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#0a0a0a;margin-bottom:12px;">Performance (1-year backtest)</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                     <div class="pf-stat-card">
-                        <div class="pf-stat-val" style="color:#00C853;">+${totalReturn}%</div>
+                        <div class="pf-stat-val" style="color:${retColor};">${totalReturn >= 0 ? '+' : ''}${totalReturn}%</div>
                         <div class="pf-stat-lbl" style="display:flex;align-items:center;gap:4px;">Total Return
-                            <span class="pf-tooltip-wrap" id="tip-tr" onclick="pfToggleTip('tip-tr',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Total gain or loss over the 12-month backtest period.</span></span>
+                            <span class="pf-tooltip-wrap" id="tip-tr" onclick="pfToggleTip('tip-tr',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Total gain or loss over the 1-year backtest period.</span></span>
                         </div>
                     </div>
                     <div class="pf-stat-card">
-                        <div class="pf-stat-val" style="color:#00C853;">+${annReturn}%</div>
+                        <div class="pf-stat-val" style="color:${annRetColor};">${annReturn >= 0 ? '+' : ''}${annReturn}%</div>
                         <div class="pf-stat-lbl" style="display:flex;align-items:center;gap:4px;">Annualised
                             <span class="pf-tooltip-wrap" id="tip-ann" onclick="pfToggleTip('tip-ann',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Return expressed as an annual rate, accounting for compounding.</span></span>
                         </div>
@@ -368,11 +440,11 @@
                     <div class="pf-stat-card">
                         <div class="pf-stat-val" style="color:#E53935;">${maxDrawdown}%</div>
                         <div class="pf-stat-lbl" style="display:flex;align-items:center;gap:4px;">Max Drawdown
-                            <span class="pf-tooltip-wrap" id="tip-mdd" onclick="pfToggleTip('tip-mdd',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Largest peak-to-trough decline in the portfolio during the period. Lower is better.</span></span>
+                            <span class="pf-tooltip-wrap" id="tip-mdd" onclick="pfToggleTip('tip-mdd',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">The largest peak-to-trough decline over the backtest period. Tells you the worst case you would have experienced.</span></span>
                         </div>
                     </div>
                     <div class="pf-stat-card">
-                        <div class="pf-stat-val">${volatility}%</div>
+                        <div class="pf-stat-val" style="color:#FF9800;">${volatility}%</div>
                         <div class="pf-stat-lbl" style="display:flex;align-items:center;gap:4px;">Volatility
                             <span class="pf-tooltip-wrap" id="tip-vol" onclick="pfToggleTip('tip-vol',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Annualised standard deviation of returns. Higher means more price swings.</span></span>
                         </div>
@@ -387,24 +459,24 @@
                 <div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#0a0a0a;margin-bottom:12px;">Risk Metrics</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
                     <div class="pf-risk-card">
-                        <div class="pf-stat-val" style="font-size:22px;color:#00C853;">${sharpe}</div>
+                        <div class="pf-stat-val" style="font-size:22px;color:${sharpeColor};">${sharpe}</div>
                         <div class="pf-risk-card-lbl">
                             <span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Sharpe</span>
-                            <span class="pf-tooltip-wrap" id="tip-sharpe" onclick="pfToggleTip('tip-sharpe',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Sharpe Ratio: Measures risk-adjusted return. Higher is better.</span></span>
+                            <span class="pf-tooltip-wrap" id="tip-sharpe" onclick="pfToggleTip('tip-sharpe',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Measures return per unit of risk. Above 1.0 is good, above 2.0 is excellent.</span></span>
                         </div>
                     </div>
                     <div class="pf-risk-card">
-                        <div class="pf-stat-val" style="font-size:22px;color:#00C853;">${sortino}</div>
+                        <div class="pf-stat-val" style="font-size:22px;color:${sortinoColor};">${sortino}</div>
                         <div class="pf-risk-card-lbl">
                             <span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Sortino</span>
-                            <span class="pf-tooltip-wrap" id="tip-sortino" onclick="pfToggleTip('tip-sortino',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Sortino Ratio: Like Sharpe, but only penalises downside volatility. Higher is better.</span></span>
+                            <span class="pf-tooltip-wrap" id="tip-sortino" onclick="pfToggleTip('tip-sortino',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Like Sharpe, but only penalises downside volatility. A fairer measure if your portfolio has asymmetric returns.</span></span>
                         </div>
                     </div>
                     <div class="pf-risk-card">
                         <div class="pf-stat-val" style="font-size:22px;color:#E53935;">${maxDrawdown}%</div>
                         <div class="pf-risk-card-lbl">
                             <span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Max DD</span>
-                            <span class="pf-tooltip-wrap" id="tip-maxdd" onclick="pfToggleTip('tip-maxdd',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Maximum Drawdown: The largest peak-to-trough decline. Lower is better.</span></span>
+                            <span class="pf-tooltip-wrap" id="tip-maxdd" onclick="pfToggleTip('tip-maxdd',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">The largest peak-to-trough decline over the backtest period. Tells you the worst case you would have experienced.</span></span>
                         </div>
                     </div>
                 </div>
@@ -424,10 +496,10 @@
             `;
             body.appendChild(riskWrap);
 
-            // Disclaimer
+            // Disclaimer from edge function
             const disc = document.createElement('div');
-            disc.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#bbb;text-align:center;line-height:1.6;padding-bottom:8px;';
-            disc.textContent = 'All figures are based on simulated historical backtests and do not represent actual returns. Past performance is not indicative of future results. StockSwype does not provide financial advice.';
+            disc.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#bbb;text-align:center;line-height:1.6;padding:16px 24px;';
+            disc.innerHTML = '⚠️ ' + (data.disclaimer || 'Past performance is not indicative of future results. StockSwype does not provide financial advice.');
             body.appendChild(disc);
 
             // Draw charts after DOM settles
@@ -438,11 +510,11 @@
                     _pfLineChart = new Chart(lineCtx, {
                         type: 'line',
                         data: {
-                            labels: months,
+                            labels: chartLabels,
                             datasets: [
                                 {
                                     label: 'Portfolio',
-                                    data: mockPortfolio,
+                                    data: data.portfolioCurve,
                                     borderColor: '#00C853',
                                     backgroundColor: 'rgba(0,200,83,0.08)',
                                     borderWidth: 2.5,
@@ -456,7 +528,7 @@
                                 },
                                 {
                                     label: 'S&P 500',
-                                    data: mockBenchmark,
+                                    data: data.spCurve,
                                     borderColor: '#aaa',
                                     backgroundColor: 'transparent',
                                     borderWidth: 1.5,
@@ -484,14 +556,14 @@
                             onHover: (event, elements, chart) => {
                                 if (!elements || elements.length === 0) return;
                                 const idx = elements[0].index;
-                                const pfVal = mockPortfolio[idx];
-                                const bchVal = mockBenchmark[idx];
-                                const pfRet = (pfVal - 100).toFixed(1);
-                                const bchRet = (bchVal - 100).toFixed(1);
+                                const pfVal = data.portfolioCurve[idx];
+                                const bchVal = data.spCurve[idx];
+                                const pfRet = pfVal.toFixed(1);
+                                const bchRet = bchVal.toFixed(1);
                                 const labelEl = document.getElementById('pf-hover-label');
                                 const pfEl = document.getElementById('pf-hover-portfolio');
                                 const bchEl = document.getElementById('pf-hover-bench');
-                                if (labelEl) labelEl.textContent = months[idx];
+                                if (labelEl) labelEl.textContent = MONTHS[new Date(data.dates[idx]).getUTCMonth()];
                                 if (pfEl) pfEl.textContent = (pfRet >= 0 ? '+' : '') + pfRet + '%';
                                 if (bchEl) bchEl.textContent = (bchRet >= 0 ? '+' : '') + bchRet + '%';
                             },
@@ -504,7 +576,7 @@
                                     grid: { color: '#f0f0f0' },
                                     ticks: {
                                         font: { size: 10 },
-                                        callback: v => (v >= 100 ? '+' : '') + (v - 100) + '%'
+                                        callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%'
                                     }
                                 }
                             }
@@ -512,13 +584,13 @@
                     });
 
                     // Set default hover readout to last data point
-                    const lastIdx = months.length - 1;
-                    const defPf = (mockPortfolio[lastIdx] - 100).toFixed(1);
-                    const defBch = (mockBenchmark[lastIdx] - 100).toFixed(1);
+                    const lastIdx = data.dates.length - 1;
+                    const defPf = data.portfolioCurve[lastIdx].toFixed(1);
+                    const defBch = data.spCurve[lastIdx].toFixed(1);
                     const labelEl = document.getElementById('pf-hover-label');
                     const pfEl = document.getElementById('pf-hover-portfolio');
                     const bchEl = document.getElementById('pf-hover-bench');
-                    if (labelEl) labelEl.textContent = months[lastIdx];
+                    if (labelEl) labelEl.textContent = MONTHS[new Date(data.dates[lastIdx]).getUTCMonth()];
                     if (pfEl) pfEl.textContent = (defPf >= 0 ? '+' : '') + defPf + '%';
                     if (bchEl) bchEl.textContent = (defBch >= 0 ? '+' : '') + defBch + '%';
                 }
@@ -571,9 +643,17 @@
                 allocs: Object.assign({}, _pfAllocs),
                 name: null,
                 date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                totalReturn: 43.2,
-                volatility: 14.7,
-                alpha: 16.2
+                totalReturn:    _lastPfAnalysis?.stats?.totalReturn    ?? 0,
+                annReturn:      _lastPfAnalysis?.stats?.annualisedReturn ?? 0,
+                volatility:     _lastPfAnalysis?.stats?.volatility     ?? 0,
+                alpha:          _lastPfAnalysis?.stats?.alpha          ?? 0,
+                sharpe:         _lastPfAnalysis?.stats?.sharpe         ?? 0,
+                sortino:        _lastPfAnalysis?.stats?.sortino        ?? 0,
+                maxDrawdown:    _lastPfAnalysis?.stats?.maxDrawdown    ?? 0,
+                chartDates:     _lastPfAnalysis?.dates                 ?? [],
+                portfolioCurve: _lastPfAnalysis?.portfolioCurve       ?? [],
+                spCurve:        _lastPfAnalysis?.spCurve               ?? [],
+                disclaimer:     _lastPfAnalysis?.disclaimer            ?? '',
             };
             _savedPortfolios.unshift(entry);
             const badge = document.getElementById('pf-saved-badge');
@@ -735,11 +815,17 @@
                     name: pf.name || pf.tickers.join(' · '),
                     tickers: pf.tickers,
                     allocs: pf.allocs || {},
-                    totalReturn: pf.totalReturn,
-                    volatility: pf.volatility,
-                    alpha: pf.alpha,
-                    sharpe: '2.2',
-                    sortino: '2.8'
+                    totalReturn:    pf.totalReturn,
+                    annReturn:      pf.annReturn,
+                    volatility:     pf.volatility,
+                    alpha:          pf.alpha,
+                    sharpe:         pf.sharpe,
+                    sortino:        pf.sortino,
+                    maxDrawdown:    pf.maxDrawdown,
+                    chartDates:     pf.chartDates     || [],
+                    portfolioCurve: pf.portfolioCurve || [],
+                    spCurve:        pf.spCurve        || [],
+                    disclaimer:     pf.disclaimer     || '',
                 });
                 await supabaseClient.from('messages').insert({
                     sender_id: currentUser.id,
@@ -779,18 +865,29 @@
         function _pfRenderDetailBody(body, pf) {
             const tickers = pf.tickers;
             const allocs = pf.allocs || {};
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const mockPortfolio = [100, 104, 109, 107, 115, 121, 118, 126, 132, 128, 138, 143];
-            const mockBenchmark = [100, 102, 105, 103, 108, 112, 110, 115, 119, 116, 123, 127];
-            const totalReturn = pf.totalReturn;
-            const annReturn = 36.8;
-            const maxDrawdown = -9.4;
-            const volatility = pf.volatility;
-            const alpha = pf.alpha;
-            const sharpe = '2.2';
-            const sortino = '2.8';
-            const riskLabel = volatility < 12 ? 'Low' : volatility < 20 ? 'Medium' : 'High';
-            const riskColor = riskLabel === 'Low' ? '#00C853' : riskLabel === 'Medium' ? '#FF9800' : '#E53935';
+            const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const totalReturn  = pf.totalReturn  || 0;
+            const annReturn    = pf.annReturn    || 0;
+            const volatility   = pf.volatility   || 0;
+            const alpha        = pf.alpha        || 0;
+            const sharpe       = pf.sharpe       || 0;
+            const sortino      = pf.sortino      || 0;
+            const maxDrawdown  = pf.maxDrawdown  || 0;
+            const riskLabel    = volatility < 12 ? 'Low' : volatility < 20 ? 'Medium' : 'High';
+            const riskColor    = riskLabel === 'Low' ? '#00C853' : riskLabel === 'Medium' ? '#FF9800' : '#E53935';
+            const retColor     = totalReturn >= 0 ? '#00C853' : '#E53935';
+            const annRetColor  = annReturn >= 0 ? '#00C853' : '#E53935';
+            const sharpeColor  = sharpe > 1 ? '#00C853' : sharpe >= 0 ? '#FF9800' : '#E53935';
+            const sortinoColor = sortino > 1 ? '#00C853' : sortino >= 0 ? '#FF9800' : '#E53935';
+
+            // Build chart data from stored real data, or empty placeholder
+            const hasCurve = pf.chartDates && pf.chartDates.length > 1;
+            const chartLabels = hasCurve ? pf.chartDates.map((d, i) => {
+                if (i === 0 || i % 30 === 0 || i === pf.chartDates.length - 1) return MONTHS[new Date(d).getUTCMonth()];
+                return '';
+            }) : [];
+            const portfolioCurve = hasCurve ? pf.portfolioCurve : [];
+            const spCurve = hasCurve ? pf.spCurve : [];
 
             // Line chart
             const lineWrap = document.createElement('div');
@@ -802,7 +899,7 @@
                         <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#aaa;display:inline-block;"></span><span style="font-family:'DM Mono',monospace;font-size:11px;color:#888;font-weight:600;">S&P 500</span></span>
                     </div>
                 </div>
-                <div style="background:#f8f8f8;border-radius:16px;padding:16px;"><canvas id="pf-sd-line-canvas" height="180"></canvas></div>`;
+                ${hasCurve ? '<div style="background:#f8f8f8;border-radius:16px;padding:16px;"><canvas id="pf-sd-line-canvas" height="180"></canvas></div>' : '<div style="background:#f8f8f8;border-radius:16px;padding:24px;text-align:center;font-family:\'DM Sans\',sans-serif;font-size:13px;color:#aaa;">No chart data available</div>'}`;
             body.appendChild(lineWrap);
 
             // Pie chart
@@ -818,12 +915,12 @@
             // Stats grid
             const statsWrap = document.createElement('div');
             statsWrap.innerHTML = `
-                <div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#0a0a0a;margin-bottom:12px;">Performance (12-month backtest)</div>
+                <div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#0a0a0a;margin-bottom:12px;">Performance (1-year backtest)</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#00C853;">+${totalReturn}%</div><div class="pf-stat-lbl">Total Return</div></div>
-                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#00C853;">+${annReturn}%</div><div class="pf-stat-lbl">Annualised</div></div>
-                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#E53935;">${maxDrawdown}%</div><div class="pf-stat-lbl">Max Drawdown</div></div>
-                    <div class="pf-stat-card"><div class="pf-stat-val">${volatility}%</div><div class="pf-stat-lbl">Volatility</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:${retColor};">${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(1)}%</div><div class="pf-stat-lbl">Total Return</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:${annRetColor};">${annReturn >= 0 ? '+' : ''}${annReturn.toFixed(1)}%</div><div class="pf-stat-lbl">Annualised</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#E53935;">${maxDrawdown.toFixed(1)}%</div><div class="pf-stat-lbl">Max Drawdown</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#FF9800;">${volatility.toFixed(1)}%</div><div class="pf-stat-lbl">Volatility</div></div>
                 </div>`;
             body.appendChild(statsWrap);
 
@@ -832,9 +929,9 @@
             riskMetrics.innerHTML = `
                 <div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#0a0a0a;margin-bottom:12px;">Risk Metrics</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:#00C853;">${sharpe}</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Sharpe</span></div></div>
-                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:#00C853;">${sortino}</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Sortino</span></div></div>
-                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:#E53935;">${maxDrawdown}%</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Max DD</span></div></div>
+                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:${sharpeColor};">${sharpe}</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Sharpe</span></div></div>
+                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:${sortinoColor};">${sortino}</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Sortino</span></div></div>
+                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:#E53935;">${maxDrawdown.toFixed(1)}%</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Max DD</span></div></div>
                 </div>`;
             body.appendChild(riskMetrics);
 
@@ -849,26 +946,28 @@
 
             // Disclaimer
             const disc = document.createElement('div');
-            disc.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#bbb;text-align:center;line-height:1.6;padding-bottom:8px;';
-            disc.textContent = 'All figures are based on simulated historical backtests and do not represent actual returns. Past performance is not indicative of future results.';
+            disc.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#bbb;text-align:center;line-height:1.6;padding:16px 24px;';
+            disc.innerHTML = '⚠️ ' + (pf.disclaimer || 'Past performance is not indicative of future results. StockSwype does not provide financial advice.');
             body.appendChild(disc);
 
             // Draw charts
             const palette = ['#00C853', '#2979FF', '#FF6D00', '#AA00FF', '#D50000', '#00B0FF', '#FFD600', '#64DD17'];
             requestAnimationFrame(() => {
-                const lineCtx = document.getElementById('pf-sd-line-canvas');
-                if (lineCtx) {
-                    _pfSDLineChart = new Chart(lineCtx, {
-                        type: 'line',
-                        data: {
-                            labels: months,
-                            datasets: [
-                                { label: 'Portfolio', data: mockPortfolio, borderColor: '#00C853', backgroundColor: 'rgba(0,200,83,0.08)', borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
-                                { label: 'S&P 500', data: mockBenchmark, borderColor: '#aaa', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, borderDash: [4, 4], tension: 0.4 }
-                            ]
-                        },
-                        options: { responsive: true, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { enabled: true } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa' } }, y: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa' }, beginAtZero: false } } }
-                    });
+                if (hasCurve) {
+                    const lineCtx = document.getElementById('pf-sd-line-canvas');
+                    if (lineCtx) {
+                        _pfSDLineChart = new Chart(lineCtx, {
+                            type: 'line',
+                            data: {
+                                labels: chartLabels,
+                                datasets: [
+                                    { label: 'Portfolio', data: portfolioCurve, borderColor: '#00C853', backgroundColor: 'rgba(0,200,83,0.08)', borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
+                                    { label: 'S&P 500', data: spCurve, borderColor: '#aaa', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, borderDash: [4, 4], tension: 0.4 }
+                                ]
+                            },
+                            options: { responsive: true, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { enabled: true } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa' } }, y: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa', callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%' } } } }
+                        });
+                    }
                 }
                 const pieCtx = document.getElementById('pf-sd-pie-canvas');
                 const pieData = tickers.map(t => allocs[t] || Math.floor(100 / tickers.length));
@@ -924,19 +1023,29 @@
         function _pfRenderSharedBody(body, pf) {
             const tickers = pf.tickers || [];
             const allocs = pf.allocs || {};
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const mockPortfolio = [100, 104, 109, 107, 115, 121, 118, 126, 132, 128, 138, 143];
-            const mockBenchmark = [100, 102, 105, 103, 108, 112, 110, 115, 119, 116, 123, 127];
-            const totalReturn = pf.totalReturn || 43.2;
-            const annReturn = 36.8;
-            const maxDrawdown = -9.4;
-            const volatility = pf.volatility || 14.7;
-            const alpha = pf.alpha || 16.2;
-            const sharpe = pf.sharpe || '2.2';
-            const sortino = pf.sortino || '2.8';
-            const riskLabel = volatility < 12 ? 'Low' : volatility < 20 ? 'Medium' : 'High';
-            const riskColor = riskLabel === 'Low' ? '#00C853' : riskLabel === 'Medium' ? '#FF9800' : '#E53935';
+            const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const totalReturn  = pf.totalReturn  || 0;
+            const annReturn    = pf.annReturn    || 0;
+            const volatility   = pf.volatility   || 0;
+            const alpha        = pf.alpha        || 0;
+            const sharpe       = pf.sharpe       || 0;
+            const sortino      = pf.sortino      || 0;
+            const maxDrawdown  = pf.maxDrawdown  || 0;
+            const riskLabel    = volatility < 12 ? 'Low' : volatility < 20 ? 'Medium' : 'High';
+            const riskColor    = riskLabel === 'Low' ? '#00C853' : riskLabel === 'Medium' ? '#FF9800' : '#E53935';
+            const retColor     = totalReturn >= 0 ? '#00C853' : '#E53935';
+            const annRetColor  = annReturn >= 0 ? '#00C853' : '#E53935';
+            const sharpeColor  = sharpe > 1 ? '#00C853' : sharpe >= 0 ? '#FF9800' : '#E53935';
+            const sortinoColor = sortino > 1 ? '#00C853' : sortino >= 0 ? '#FF9800' : '#E53935';
             const palette = ['#00C853', '#2979FF', '#FF6D00', '#AA00FF', '#D50000', '#00B0FF', '#FFD600', '#64DD17'];
+
+            const hasCurve = pf.chartDates && pf.chartDates.length > 1;
+            const chartLabels = hasCurve ? pf.chartDates.map((d, i) => {
+                if (i === 0 || i % 30 === 0 || i === pf.chartDates.length - 1) return MONTHS[new Date(d).getUTCMonth()];
+                return '';
+            }) : [];
+            const portfolioCurve = hasCurve ? pf.portfolioCurve : [];
+            const spCurve = hasCurve ? pf.spCurve : [];
 
             // Line chart
             const lineWrap = document.createElement('div');
@@ -948,7 +1057,7 @@
                         <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#aaa;display:inline-block;"></span><span style="font-family:'DM Mono',monospace;font-size:11px;color:#888;font-weight:600;">S&P 500</span></span>
                     </div>
                 </div>
-                <div style="background:#f8f8f8;border-radius:16px;padding:16px;"><canvas id="pf-sh-line-canvas" height="180"></canvas></div>`;
+                ${hasCurve ? '<div style="background:#f8f8f8;border-radius:16px;padding:16px;"><canvas id="pf-sh-line-canvas" height="180"></canvas></div>' : '<div style="background:#f8f8f8;border-radius:16px;padding:24px;text-align:center;font-family:\'DM Sans\',sans-serif;font-size:13px;color:#aaa;">No chart data available</div>'}`;
             body.appendChild(lineWrap);
 
             // Pie chart
@@ -964,12 +1073,12 @@
             // Stats grid
             const statsWrap = document.createElement('div');
             statsWrap.innerHTML = `
-                <div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#0a0a0a;margin-bottom:12px;">Performance (12-month backtest)</div>
+                <div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#0a0a0a;margin-bottom:12px;">Performance (1-year backtest)</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#00C853;">+${totalReturn}%</div><div class="pf-stat-lbl">Total Return</div></div>
-                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#00C853;">+${annReturn}%</div><div class="pf-stat-lbl">Annualised</div></div>
-                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#E53935;">${maxDrawdown}%</div><div class="pf-stat-lbl">Max Drawdown</div></div>
-                    <div class="pf-stat-card"><div class="pf-stat-val">${volatility}%</div><div class="pf-stat-lbl">Volatility</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:${retColor};">${totalReturn >= 0 ? '+' : ''}${typeof totalReturn === 'number' ? totalReturn.toFixed(1) : totalReturn}%</div><div class="pf-stat-lbl">Total Return</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:${annRetColor};">${annReturn >= 0 ? '+' : ''}${typeof annReturn === 'number' ? annReturn.toFixed(1) : annReturn}%</div><div class="pf-stat-lbl">Annualised</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#E53935;">${typeof maxDrawdown === 'number' ? maxDrawdown.toFixed(1) : maxDrawdown}%</div><div class="pf-stat-lbl">Max Drawdown</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#FF9800;">${typeof volatility === 'number' ? volatility.toFixed(1) : volatility}%</div><div class="pf-stat-lbl">Volatility</div></div>
                 </div>`;
             body.appendChild(statsWrap);
 
@@ -978,9 +1087,9 @@
             riskMetrics.innerHTML = `
                 <div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#0a0a0a;margin-bottom:12px;">Risk Metrics</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:#00C853;">${sharpe}</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Sharpe</span></div></div>
-                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:#00C853;">${sortino}</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Sortino</span></div></div>
-                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:#E53935;">${maxDrawdown}%</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Max DD</span></div></div>
+                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:${sharpeColor};">${sharpe}</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Sharpe</span></div></div>
+                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:${sortinoColor};">${sortino}</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Sortino</span></div></div>
+                    <div class="pf-risk-card"><div class="pf-stat-val" style="font-size:22px;color:#E53935;">${typeof maxDrawdown === 'number' ? maxDrawdown.toFixed(1) : maxDrawdown}%</div><div class="pf-risk-card-lbl"><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;">Max DD</span></div></div>
                 </div>`;
             body.appendChild(riskMetrics);
 
@@ -995,25 +1104,27 @@
 
             // Disclaimer
             const disc = document.createElement('div');
-            disc.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#bbb;text-align:center;line-height:1.6;padding-bottom:8px;';
-            disc.textContent = 'All figures are based on simulated historical backtests. This is a read-only view of a shared portfolio. Past performance is not indicative of future results.';
+            disc.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#bbb;text-align:center;line-height:1.6;padding:16px 24px;';
+            disc.innerHTML = '⚠️ ' + (pf.disclaimer || 'Past performance is not indicative of future results. This is a read-only view of a shared portfolio. StockSwype does not provide financial advice.');
             body.appendChild(disc);
 
             // Draw charts
             requestAnimationFrame(() => {
-                const lineCtx = document.getElementById('pf-sh-line-canvas');
-                if (lineCtx) {
-                    _pfSharedLineChart = new Chart(lineCtx, {
-                        type: 'line',
-                        data: {
-                            labels: months,
-                            datasets: [
-                                { label: 'Portfolio', data: mockPortfolio, borderColor: '#00C853', backgroundColor: 'rgba(0,200,83,0.08)', borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
-                                { label: 'S&P 500', data: mockBenchmark, borderColor: '#aaa', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, borderDash: [4, 4], tension: 0.4 }
-                            ]
-                        },
-                        options: { responsive: true, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { enabled: true } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa' } }, y: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa' }, beginAtZero: false } } }
-                    });
+                if (hasCurve) {
+                    const lineCtx = document.getElementById('pf-sh-line-canvas');
+                    if (lineCtx) {
+                        _pfSharedLineChart = new Chart(lineCtx, {
+                            type: 'line',
+                            data: {
+                                labels: chartLabels,
+                                datasets: [
+                                    { label: 'Portfolio', data: portfolioCurve, borderColor: '#00C853', backgroundColor: 'rgba(0,200,83,0.08)', borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
+                                    { label: 'S&P 500', data: spCurve, borderColor: '#aaa', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, borderDash: [4, 4], tension: 0.4 }
+                                ]
+                            },
+                            options: { responsive: true, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { enabled: true } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa' } }, y: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa', callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%' } } } }
+                        });
+                    }
                 }
                 const pieCtx = document.getElementById('pf-sh-pie-canvas');
                 const pieData = tickers.map(t => allocs[t] || Math.floor(100 / tickers.length));
