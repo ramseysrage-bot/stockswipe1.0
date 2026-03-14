@@ -439,9 +439,9 @@
                         </div>
                     </div>
                     <div class="pf-stat-card">
-                        <div class="pf-stat-val" style="color:#E53935;">${maxDrawdown}%</div>
-                        <div class="pf-stat-lbl" style="display:flex;align-items:center;gap:4px;">Max Drawdown
-                            <span class="pf-tooltip-wrap" id="tip-mdd" onclick="pfToggleTip('tip-mdd',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">The largest peak-to-trough decline over the backtest period. Tells you the worst case you would have experienced.</span></span>
+                        <div class="pf-stat-val" style="color:${alphaColor};">${alpha >= 0 ? '+' : ''}${alpha}%</div>
+                        <div class="pf-stat-lbl" style="display:flex;align-items:center;gap:4px;">Alpha vs S&amp;P 500
+                            <span class="pf-tooltip-wrap" id="tip-alpha" onclick="pfToggleTip('tip-alpha',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">How much your portfolio outperformed (or underperformed) the S&amp;P 500. Positive alpha means you beat the market.</span></span>
                         </div>
                     </div>
                     <div class="pf-stat-card">
@@ -993,7 +993,7 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:${retColor};">${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(1)}%</div><div class="pf-stat-lbl">Total Return</div></div>
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:${annRetColor};">${annReturn >= 0 ? '+' : ''}${annReturn.toFixed(1)}%</div><div class="pf-stat-lbl">Annualised</div></div>
-                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#E53935;">${maxDrawdown.toFixed(1)}%</div><div class="pf-stat-lbl">Max Drawdown</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:${alphaColor};">${alpha >= 0 ? '+' : ''}${typeof alpha === 'number' ? alpha.toFixed(1) : alpha}%</div><div class="pf-stat-lbl">Alpha vs S&amp;P 500</div></div>
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:#FF9800;">${volatility.toFixed(1)}%</div><div class="pf-stat-lbl">Volatility</div></div>
                 </div>`;
             body.appendChild(statsWrap);
@@ -1151,7 +1151,7 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:${retColor};">${totalReturn >= 0 ? '+' : ''}${typeof totalReturn === 'number' ? totalReturn.toFixed(1) : totalReturn}%</div><div class="pf-stat-lbl">Total Return</div></div>
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:${annRetColor};">${annReturn >= 0 ? '+' : ''}${typeof annReturn === 'number' ? annReturn.toFixed(1) : annReturn}%</div><div class="pf-stat-lbl">Annualised</div></div>
-                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#E53935;">${typeof maxDrawdown === 'number' ? maxDrawdown.toFixed(1) : maxDrawdown}%</div><div class="pf-stat-lbl">Max Drawdown</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:${alphaColor};">${alpha >= 0 ? '+' : ''}${typeof alpha === 'number' ? alpha.toFixed(1) : alpha}%</div><div class="pf-stat-lbl">Alpha vs S&amp;P 500</div></div>
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:#FF9800;">${typeof volatility === 'number' ? volatility.toFixed(1) : volatility}%</div><div class="pf-stat-lbl">Volatility</div></div>
                 </div>`;
             body.appendChild(statsWrap);
