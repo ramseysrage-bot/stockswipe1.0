@@ -1,13 +1,7 @@
         async function fetchWithFallback(yahooUrl) {
-            try {
-                const r = await fetch(yahooUrl);
-                if (!r.ok) throw new Error('direct failed');
-                return await r.json();
-            } catch {
-                const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(yahooUrl));
-                if (!r.ok) throw new Error('proxy failed');
-                return await r.json();
-            }
+            const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(yahooUrl));
+            if (!r.ok) throw new Error('proxy failed');
+            return await r.json();
         }
 
         const SUPABASE_URL = ' https://rzvrdvvzxgwccldqnxbm.supabase.co';

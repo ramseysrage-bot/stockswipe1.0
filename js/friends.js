@@ -51,26 +51,61 @@
                 // ── Accepted friends ───────────────────────────────────────────
                 if (accepted.length > 0) {
                     html += `<div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;padding:16px 20px 10px;">Friends</div>`;
+
+                    // Collect all friend profiles + tickers first
+                    const friendData = [];
                     for (const f of accepted) {
                         const friendId = f.requester_id === currentUser.id ? f.addressee_id : f.requester_id;
                         const { data: prof } = await supabaseClient
                             .from('user_profiles').select('username, avatar_url').eq('user_id', friendId).maybeSingle();
                         const { data: saved } = await supabaseClient
                             .from('saved_stocks').select('ticker').eq('user_id', friendId).order('saved_at', { ascending: false }).limit(5);
+                        friendData.push({ f, friendId, prof, tickerList: (saved || []).map(s => s.ticker) });
+                    }
+
+                    // Batch-fetch prices for all friends' tickers in one call
+                    const allUniqTickers = [...new Set(friendData.flatMap(fd => fd.tickerList))];
+                    let friendPrices = {};
+                    if (allUniqTickers.length > 0) {
+                        try {
+                            friendPrices = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(allUniqTickers.join(',')) + '&mode=price&interval=1d&range=1d').then(r => r.json());
+                        } catch (_) {}
+                    }
+
+                    // Build HTML with avg % pill per friend
+                    for (const { f, friendId, prof, tickerList } of friendData) {
                         const uname = prof?.username || 'Unknown';
-                        const tickers = (saved || []).map(s =>
-                            `<div style="background:#f4f4f5;border-radius:8px;padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#0a0a0a;">${s.ticker}</div>`
+
+                        let avgHtml = '';
+                        if (tickerList.length > 0) {
+                            const changes = tickerList.map(t => {
+                                const d = friendPrices[t];
+                                return (d && d.price != null && d.prev != null) ? (d.price - d.prev) / d.prev * 100 : null;
+                            }).filter(v => v !== null);
+                            if (changes.length > 0) {
+                                const avg = changes.reduce((a, b) => a + b, 0) / changes.length;
+                                const avgSign = avg >= 0 ? '+' : '';
+                                const avgColor = avg >= 0 ? '#00C853' : '#E53935';
+                                const avgBg = avg >= 0 ? 'rgba(0,200,83,0.1)' : 'rgba(229,57,53,0.1)';
+                                avgHtml = `<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:${avgColor};background:${avgBg};padding:3px 8px;border-radius:8px;">${avgSign}${avg.toFixed(2)}%</div>`;
+                            }
+                        }
+
+                        const tickerPills = tickerList.map(t =>
+                            `<div style="background:#f4f4f5;border-radius:8px;padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#0a0a0a;">${t}</div>`
                         ).join('');
+
                         html += `
                             <div style="padding:14px 20px;border-bottom:1px solid #f0f0f0;">
                                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                                     <div onclick="showFriendHistory('${friendId}', '${uname}', '${prof?.avatar_url || ''}')" style="display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
                                         ${avatarHTML(uname, prof?.avatar_url, 40, 13)}
                                         <div style="font-family:'DM Sans',sans-serif;font-weight:600;font-size:15px;color:#0a0a0a;">@${uname}</div>
+                                        ${avgHtml}
                                     </div>
                                     <button onclick="removeFriend('${f.id}')" style="background:none;border:none;font-family:'DM Sans',sans-serif;font-size:12px;color:#ccc;cursor:pointer;">Remove</button>
                                 </div>
-                                ${tickers ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${tickers}</div>` : `<div style="font-family:'DM Sans',sans-serif;font-size:12px;color:#bbb;">No saved stocks yet</div>`}
+                                ${tickerList.length > 0 ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${tickerPills}</div>` : `<div style="font-family:'DM Sans',sans-serif;font-size:12px;color:#bbb;">No saved stocks yet</div>`}
                             </div>`;
                     }
                 }

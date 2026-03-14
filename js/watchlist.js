@@ -111,11 +111,10 @@
 
         // --- Watchlist Logic ---
         function showWatchlist() {
-            const _idxRowWl = document.getElementById('index-cards-row');
-            if (_idxRowWl) _idxRowWl.style.display = 'none';
             document.getElementById('feed').classList.remove('active');
             document.getElementById('watchlist').classList.add('active');
             renderWatchlist();
+            fetchSavedStockPrices();
         }
 
         function hideWatchlist() {
@@ -123,8 +122,6 @@
             document.getElementById('feed').classList.add('active');
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.getElementById('nav-btn-home').classList.add('active');
-            const _idxRowHw = document.getElementById('index-cards-row');
-            if (_idxRowHw && !isExpanded) _idxRowHw.style.display = 'block';
         }
 
         function clearAllSaved() {
