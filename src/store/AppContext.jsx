@@ -23,9 +23,6 @@ export function AppProvider({ children }) {
   const [isExpanded, setIsExpanded] = useState(false)    // card expanded into detail view
   const [expandCardSource, setExpandCardSource] = useState('feed') // 'feed' | 'saved'
 
-  // ── Alpha overlay ─────────────────────────────────────────────────────────
-  const [alphaOpen, setAlphaOpen] = useState(false)
-
   // ── Toast ─────────────────────────────────────────────────────────────────
   const [toastMsg, setToastMsg] = useState('')
   const toastTimerRef = useRef(null)
@@ -110,10 +107,6 @@ export function AppProvider({ children }) {
     setIsExpanded,
     expandCardSource,
     setExpandCardSource,
-
-    // Alpha overlay
-    alphaOpen,
-    setAlphaOpen,
 
     // Toast
     toastMsg,

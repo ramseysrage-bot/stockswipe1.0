@@ -63,7 +63,7 @@ const COLUMN_CONFIG = [
 
 const COLUMNS_DATA = [COL_1, COL_2, COL_3];
 
-export default function SplashScreen({ onGetStarted }) {
+export default function SplashScreen({ onGetStarted, onOpenAlpha }) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const stripRefs = [useRef(null), useRef(null), useRef(null)];
   const animFrames = useRef([]);
@@ -119,7 +119,18 @@ export default function SplashScreen({ onGetStarted }) {
 
       {/* Central CTA */}
       <div className="content">
-        <span className="logo">StockSwype</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <span className="logo" style={{ marginBottom: 0 }}>StockSwype</span>
+          {onOpenAlpha && (
+            <button
+              className="alpha-badge"
+              onClick={onOpenAlpha}
+              aria-label="Open Alpha features"
+            >
+              <span className="alpha-badge-char">α</span>
+            </button>
+          )}
+        </div>
 
         <div className="headline">
           Stocks worth<br /><strong>discovering.</strong>

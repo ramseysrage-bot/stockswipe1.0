@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { useApp } from '../../store/AppContext'
 
 const TABS = [
@@ -68,44 +67,8 @@ const TABS = [
   },
 ]
 
-// One-time animation: "Alpha" word → "α" symbol, stored in localStorage
-function AlphaTabLabel() {
-  const [phase, setPhase] = useState(() =>
-    localStorage.getItem('alphaTabDone') === '1' ? 'symbol' : 'word'
-  )
-
-  useEffect(() => {
-    if (phase !== 'word') return
-    const t = setTimeout(() => {
-      setPhase('out')
-      setTimeout(() => {
-        setPhase('symbol')
-        localStorage.setItem('alphaTabDone', '1')
-      }, 600)
-    }, 2200)
-    return () => clearTimeout(t)
-  }, [])
-
-  return (
-    <div className="alpha-tab-label-wrap">
-      <span
-        className="alpha-tab-word"
-        style={{ opacity: phase === 'word' ? 1 : 0, transform: phase === 'word' ? 'scale(1)' : 'scale(0.6)' }}
-      >
-        Alpha
-      </span>
-      <span
-        className="alpha-tab-sym"
-        style={{ opacity: phase === 'symbol' ? 1 : 0, transform: phase === 'symbol' ? 'scale(1)' : 'scale(1.4)' }}
-      >
-        α
-      </span>
-    </div>
-  )
-}
-
 export default function TabNav({ friendsBadge = 0 }) {
-  const { activeTab, setActiveTab, isExpanded, setAlphaOpen } = useApp()
+  const { activeTab, setActiveTab, isExpanded } = useApp()
 
   return (
     <nav className="bottom-nav active" style={isExpanded ? { display: 'none' } : {}}>
@@ -135,14 +98,6 @@ export default function TabNav({ friendsBadge = 0 }) {
           </div>
         )
       })}
-
-      {/* Alpha tab — opens overlay, does not change activeTab */}
-      <div
-        className="nav-item alpha-nav-item"
-        onClick={() => setAlphaOpen(true)}
-      >
-        <AlphaTabLabel />
-      </div>
     </nav>
   )
 }

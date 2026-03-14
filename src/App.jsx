@@ -16,9 +16,8 @@ import PortfolioTab  from './components/portfolio/PortfolioTab'
 import FriendsTab    from './components/friends/FriendsTab'
 import ProfileTab    from './components/profile/ProfileTab'
 
-import TabNav      from './components/shared/TabNav'
-import Toast       from './components/shared/Toast'
-import AlphaScreen from './components/shared/AlphaScreen'
+import TabNav from './components/shared/TabNav'
+import Toast  from './components/shared/Toast'
 
 const SCREEN = {
   SPLASH:     'splash',
@@ -33,21 +32,25 @@ const SCREEN = {
 export default function App() {
   const [screen, setScreen] = useState(SCREEN.SPLASH)
   const [quizProfile, setQuizProfile] = useState(null)
-  const { activeTab, setActiveTab, currentUser, setCurrentUser, setUserProfile, isExpanded, alphaOpen, setAlphaOpen } = useApp()
+  const { activeTab, setActiveTab, currentUser, setCurrentUser, setUserProfile, isExpanded } = useApp()
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        if (session?.user) {
-          setCurrentUser(session.user)
-          handleExistingUser(session.user)
-        }
-      } else if (event === 'SIGNED_OUT') {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setCurrentUser(session.user)
+        handleExistingUser(session.user)
+      }
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setCurrentUser(session.user)
+        handleExistingUser(session.user)
+      } else {
         setCurrentUser(null)
         setUserProfile(null)
         setScreen(SCREEN.SPLASH)
       }
-      // Ignore TOKEN_REFRESHED, USER_UPDATED — prevents mid-session screen resets
     })
 
     return () => subscription.unsubscribe()
@@ -136,10 +139,7 @@ export default function App() {
       )}
 
       {screen === SCREEN.LOADING && (
-        <LoadingScreen
-          categories={quizProfile?.categories || []}
-          onComplete={() => setScreen(SCREEN.LOGO_SPLIT)}
-        />
+        <LoadingScreen onComplete={() => setScreen(SCREEN.LOGO_SPLIT)} />
       )}
 
       {screen === SCREEN.LOGO_SPLIT && (
@@ -155,7 +155,6 @@ export default function App() {
             </div>
             {!isExpanded && <TabNav />}
             <Toast />
-            <AlphaScreen isOpen={alphaOpen} onClose={() => setAlphaOpen(false)} />
           </div>
         </div>
       )}

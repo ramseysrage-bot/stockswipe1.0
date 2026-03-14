@@ -441,50 +441,6 @@ body {
     display: block;
 }
 
-/* ── Alpha Tab ── */
-.alpha-nav-item {
-    flex-direction: column;
-    justify-content: center;
-    gap: 0;
-}
-
-.alpha-tab-label-wrap {
-    position: relative;
-    width: 44px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.alpha-tab-word {
-    position: absolute;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    background: linear-gradient(135deg, #00C853 0%, #69F0AE 45%, #00E676 75%, #1DE9B6 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    white-space: nowrap;
-    transition: opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1), transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.alpha-tab-sym {
-    position: absolute;
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 24px;
-    font-weight: 400;
-    line-height: 1;
-    background: linear-gradient(135deg, #00C853 0%, #69F0AE 45%, #00E676 75%, #1DE9B6 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    transition: opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1), transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
 /* ── Bottom Nav ── */
 .bottom-nav {
     position: fixed;
