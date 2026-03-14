@@ -355,7 +355,9 @@
             if (successEl) {
                 document.getElementById('pf-s-val1').textContent = (totalReturn >= 0 ? '+' : '') + totalReturn + '%';
                 document.getElementById('pf-s-val2').textContent = volatility + '%';
-                document.getElementById('pf-s-val3').textContent = (alpha >= 0 ? '+' : '') + alpha + '%';
+                const val3El = document.getElementById('pf-s-val3');
+                val3El.textContent = (alpha >= 0 ? '+' : '') + alpha + '%';
+                val3El.style.color = alpha >= 0 ? '' : '#E53935';
                 ['pf-s-stat1', 'pf-s-stat2', 'pf-s-stat3'].forEach(id => {
                     const el = document.getElementById(id);
                     el.classList.remove('pop');
