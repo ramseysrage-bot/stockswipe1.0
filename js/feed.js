@@ -665,25 +665,24 @@
 
         async function fetchSavedStockPrices() {
             if (!savedStocks || savedStocks.length === 0) return;
-            const delay = ms => new Promise(r => setTimeout(r, ms));
-            for (const stock of savedStocks) {
-                if (stock.priceLoaded) continue;
-                try {
-                    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + stock.ticker + '?interval=1d&range=1d&_=' + Date.now();
-                    const data = await fetchWithFallback(url);
-                    const meta = data?.chart?.result?.[0]?.meta;
-                    if (meta) {
-                        const c = meta.regularMarketPrice;
-                        const o = meta.chartPreviousClose;
+            const unloaded = savedStocks.filter(s => !s.priceLoaded);
+            if (!unloaded.length) return;
+            try {
+                const tickers = unloaded.map(s => s.ticker).join(',');
+                const data = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(tickers) + '&mode=price&interval=1d&range=1d').then(r => r.json());
+                for (const stock of unloaded) {
+                    const d = data[stock.ticker];
+                    if (d && d.price != null) {
+                        const c = d.price;
+                        const o = d.prev || c;
                         const changePct = ((c - o) / o * 100).toFixed(2);
                         stock.price = '$' + c.toFixed(2);
                         stock.change = (changePct >= 0 ? '+' : '') + changePct + '%';
                         stock.color = changePct >= 0 ? 'green' : 'red';
                         stock.priceLoaded = true;
                     }
-                } catch (_) { }
-                await delay(120);
-            }
+                }
+            } catch (_) { }
             // Re-render watchlist only if it's currently visible
             const wl = document.getElementById('watchlist');
             if (wl && wl.classList.contains('active')) renderWatchlist();

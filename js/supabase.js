@@ -16,6 +16,7 @@
         const POLYGON_KEY = 'sCT1CY6jexDOq2E76cmLP8hyLlGrDPZN';
         const FMP_KEY = 'YlDT85SvxL4hNZsBSc3jZejoyJ0nsae3';
         const FINNHUB_KEY = 'd6nk26hr01qodk605hhgd6nk26hr01qodk605hi0';
+        const EDGE_FN_URL = 'https://rzvrdvvzxgwccldqnxbm.supabase.co/functions/v1/market-data';
 
         let userInterests = [];
         let userProfile = null;   // populated after quiz; drives feed ranking

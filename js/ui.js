@@ -652,27 +652,13 @@
             if (loadEl) { loadEl.style.display = 'flex'; loadEl.innerText = 'Loading…'; }
             canvasEl.style.display = 'none';
 
-            // Fetch via corsproxy (same pattern as rest of app)
+            // Fetch via edge function (server-side, no CORS fallback needed)
             const p = _rangeParams[range];
-            const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${p.range}&interval=${p.interval}&_=${Date.now()}`;
             try {
-                const json = await fetchWithFallback(yahooUrl);
-                const result = json?.chart?.result?.[0];
-                if (!result) throw new Error('No data');
-
-                const timestamps = result.timestamp || [];
-                const closes = result.indicators?.quote?.[0]?.close || [];
-
-                // Build clean point array — skip nulls
-                const points = [];
-                for (let i = 0; i < timestamps.length; i++) {
-                    if (closes[i] != null) {
-                        points.push({ t: timestamps[i] * 1000, y: closes[i] });
-                    }
-                }
-
-                if (points.length === 0) throw new Error('Empty series');
-
+                const json = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(ticker) + '&mode=chart&range=' + p.range + '&interval=' + p.interval).then(r => r.json());
+                const d = json[ticker];
+                if (!d || !d.points || d.points.length === 0) throw new Error('Empty series');
+                const points = d.points;
                 _expChartCache[cacheKey] = points;
                 renderChart(points);
             } catch (err) {
@@ -1048,18 +1034,12 @@
             }
             const p = _spkRangeParams[range];
             if (!p) return;
-            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${p.range}&interval=${p.interval}&_=${Date.now()}`;
             try {
-                const json = await fetchWithFallback(url);
-                const result = json?.chart?.result?.[0];
-                if (!result) return;
-                const ts = result.timestamp || [];
-                const cl = result.indicators?.quote?.[0]?.close || [];
-                const points = [], timestamps = [];
-                for (let i = 0; i < ts.length; i++) {
-                    if (cl[i] != null) { points.push(cl[i]); timestamps.push(ts[i] * 1000); }
-                }
-                if (points.length < 2) return;
+                const json = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(ticker) + '&mode=chart&range=' + p.range + '&interval=' + p.interval).then(r => r.json());
+                const d = json[ticker];
+                if (!d || !d.points || d.points.length < 2) return;
+                const points = d.points.map(pt => pt.y);
+                const timestamps = d.points.map(pt => pt.t);
                 _spkCache[cacheKey] = { points, timestamps };
                 _renderSparkline(ticker, points, timestamps, range);
             } catch (err) {
@@ -1309,19 +1289,14 @@
             return ticker.replace(/[^a-zA-Z0-9]/g, '_');
         }
 
-        async function updateIndexCard(ticker) {
+        function _applyIndexCardData(ticker, d) {
             const sid = idxSafeId(ticker);
             const changeEl = document.getElementById('idx-change-' + sid);
             if (!changeEl) return;
             try {
-                const url  = 'https://query1.finance.yahoo.com/v8/finance/chart/' + ticker + '?interval=5m&range=1d';
-                const data = await fetchWithFallback(url);
-                const result = data?.chart?.result?.[0];
-                if (!result) throw new Error('no result');
-                const meta = result.meta;
-                if (!meta) throw new Error('no data');
-                const price = meta.regularMarketPrice;
-                const prev  = meta.chartPreviousClose || meta.previousClose || price;
+                if (!d || d.price == null) throw new Error('no data');
+                const price = d.price;
+                const prev  = d.prev || price;
                 const pct   = ((price - prev) / prev * 100);
                 const isPos = pct >= 0;
                 changeEl.textContent = (isPos ? '+' : '') + pct.toFixed(2) + '%';
@@ -1342,11 +1317,15 @@
 
         async function initIndexCards() {
             _showIndexPillRow();
-            await Promise.allSettled(INDEX_TICKERS.map(item => updateIndexCard(item.ticker)));
+            try {
+                const tickers = INDEX_TICKERS.map(i => i.ticker).join(',');
+                const data = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(tickers) + '&mode=price&interval=5m&range=1d').then(r => r.json());
+                INDEX_TICKERS.forEach(item => _applyIndexCardData(item.ticker, data[item.ticker]));
+            } catch {
+                INDEX_TICKERS.forEach(item => _applyIndexCardData(item.ticker, null));
+            }
             if (window._indexRefreshInterval) clearInterval(window._indexRefreshInterval);
-            window._indexRefreshInterval = setInterval(() => {
-                Promise.allSettled(INDEX_TICKERS.map(item => updateIndexCard(item.ticker)));
-            }, 60000);
+            window._indexRefreshInterval = setInterval(() => initIndexCards(), 60000);
         }
         // ─── Alpha Screen ───
         let _alphaCrossfadeTimer = null;
