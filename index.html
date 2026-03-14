@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src https://fonts.gstatic.com;
+        img-src 'self' data: https:;
+        connect-src https://rzvrdvvzxgwccldqnxbm.supabase.co https://finnhub.io https://api.allorigins.win https://api.polygon.io https://financialmodelingprep.com https://query1.finance.yahoo.com;
+        frame-ancestors 'none';
+    ">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>StockSwype</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <!-- Chart.js for expanded interactive price charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/animations.css">
+</head>
+
+<body>
+
+    <!-- Cosmetic iPhone Shell overlay (desktop only) -->
+    <div class="iphone-frame iphone-mockup">
+        <div class="btn-mute"></div>
+        <div class="btn-vol-up"></div>
+        <div class="btn-vol-down"></div>
+        <div class="btn-power"></div>
+
+        <div class="status-bar">
+            <div class="time">9:41</div>
+            <div class="dynamic-island"></div>
+            <div class="status-icons">
+                <!-- Signal -->
+                <div class="icon-signal">
+                    <svg viewBox="0 0 18 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="0" y="8.5" width="3" height="3.5" rx="1" fill="#000" />
+                        <rect x="4.5" y="6" width="3" height="6" rx="1" fill="#000" />
+                        <rect x="9" y="3" width="3" height="9" rx="1" fill="#000" />
+                        <rect x="13.5" y="0" width="3" height="12" rx="1" fill="#000" />
+                    </svg>
+                </div>
+                <!-- Wifi -->
+                <div class="icon-wifi">
+                    <svg viewBox="0 0 16 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M8 12C8.82843 12 9.5 11.3284 9.5 10.5C9.5 9.67157 8.82843 9 8 9C7.17157 9 6.5 9.67157 6.5 10.5C6.5 11.3284 7.17157 12 8 12Z"
+                            fill="#000" />
+                        <path
+                            d="M12.0461 7.17387C10.8872 6.01429 9.45899 5.5 8.00004 5.5C6.54109 5.5 5.11283 6.01429 3.95393 7.17387L2.89331 6.11325C4.30561 4.70014 6.15286 4 8.00004 4C9.84723 4 11.6945 4.70014 13.1068 6.11325L12.0461 7.17387Z"
+                            fill="#000" />
+                        <path
+                            d="M15.5818 3.63821C13.5273 1.58284 10.7636 0.5 8.00004 0.5C5.23645 0.5 2.47274 1.58284 0.418258 3.63821L1.47888 4.69882C3.25056 2.92628 5.62529 2 8.00004 2C10.3748 2 12.7495 2.92628 14.5212 4.69882L15.5818 3.63821Z"
+                            fill="#000" />
+                    </svg>
+                </div>
+                <!-- Battery -->
+                <div class="icon-battery">
+                    <svg viewBox="0 0 26 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="0.5" y="0.5" width="22" height="11" rx="3.5" stroke="#000" />
+                        <rect x="2" y="2" width="15" height="8" rx="2" fill="#000" />
+                        <path d="M24 4V8" stroke="#000" stroke-linecap="round" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="home-indicator"></div>
+    </div>
+
+    <div id="app-loader"
+        style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
+        <span
+            style="font-family:'DM Mono',monospace;font-size:13px;font-weight:800;letter-spacing:4px;text-transform:uppercase;background:linear-gradient(130deg,#00C853,#69F0AE 55%,#00BFA5);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">STOCKSWYPE</span>
+        <span style="font-family:'DM Mono',monospace;font-size:11px;color:#999;letter-spacing:2px;">Loading...</span>
+    </div>
+
+    <div id="splash-screen" style="transition: opacity 0.3s ease; opacity: 0; pointer-events: none;">
+        <div class="wall">
+            <div class="col">
+                <div class="strip">
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#222">NV</div><span
+                                class="mc-pct green">+1.54%</span>
+                        </div>
+                        <div class="mc-ticker">NVDA</div>
+                        <div class="mc-name">NVIDIA</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$875</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#003087">JP</div><span
+                                class="mc-pct red">-1.37%</span>
+                        </div>
+                        <div class="mc-ticker">JPM</div>
+                        <div class="mc-name">JPMorgan</div>
+                        <div class="mc-bar redline"></div>
+                        <div class="mc-price">$198</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#1DB954">SP</div><span
+                                class="mc-pct green">+2.38%</span>
+                        </div>
+                        <div class="mc-ticker">SPOT</div>
+                        <div class="mc-name">Spotify</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$312</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#0052FF">CO</div><span
+                                class="mc-pct green">+4.07%</span>
+                        </div>
+                        <div class="mc-ticker">COIN</div>
+                        <div class="mc-name">Coinbase</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$224</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#ED1C24">AM</div><span
+                                class="mc-pct green">+2.16%</span>
+                        </div>
+                        <div class="mc-ticker">AMD</div>
+                        <div class="mc-name">AMD</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$162</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#820AD1">NU</div><span
+                                class="mc-pct green">+3.44%</span>
+                        </div>
+                        <div class="mc-ticker">NU</div>
+                        <div class="mc-name">Nubank</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$10.8</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#FF5A5F">AB</div><span
+                                class="mc-pct green">+2.37%</span>
+                        </div>
+                        <div class="mc-ticker">ABNB</div>
+                        <div class="mc-name">Airbnb</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$148</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#001F5B">MR</div><span
+                                class="mc-pct red">-3.13%</span>
+                        </div>
+                        <div class="mc-ticker">MRNA</div>
+                        <div class="mc-name">Moderna</div>
+                        <div class="mc-bar redline"></div>
+                        <div class="mc-price">$88.3</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#222">NV</div><span
+                                class="mc-pct green">+1.54%</span>
+                        </div>
+                        <div class="mc-ticker">NVDA</div>
+                        <div class="mc-name">NVIDIA</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$875</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#003087">JP</div><span
+                                class="mc-pct red">-1.37%</span>
+                        </div>
+                        <div class="mc-ticker">JPM</div>
+                        <div class="mc-name">JPMorgan</div>
+                        <div class="mc-bar redline"></div>
+                        <div class="mc-price">$198</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#1DB954">SP</div><span
+                                class="mc-pct green">+2.38%</span>
+                        </div>
+                        <div class="mc-ticker">SPOT</div>
+                        <div class="mc-name">Spotify</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$312</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#0052FF">CO</div><span
+                                class="mc-pct green">+4.07%</span>
+                        </div>
+                        <div class="mc-ticker">COIN</div>
+                        <div class="mc-name">Coinbase</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$224</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#ED1C24">AM</div><span
+                                class="mc-pct green">+2.16%</span>
+                        </div>
+                        <div class="mc-ticker">AMD</div>
+                        <div class="mc-name">AMD</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$162</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#820AD1">NU</div><span
+                                class="mc-pct green">+3.44%</span>
+                        </div>
+                        <div class="mc-ticker">NU</div>
+                        <div class="mc-name">Nubank</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$10.8</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#FF5A5F">AB</div><span
+                                class="mc-pct green">+2.37%</span>
+                        </div>
+                        <div class="mc-ticker">ABNB</div>
+                        <div class="mc-name">Airbnb</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$148</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#001F5B">MR</div><span
+                                class="mc-pct red">-3.13%</span>
+                        </div>
+                        <div class="mc-ticker">MRNA</div>
+                        <div class="mc-name">Moderna</div>
+                        <div class="mc-bar redline"></div>
+                        <div class="mc-price">$88.3</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="strip">
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#555">AA</div><span
+                                class="mc-pct green">+0.82%</span>
+                        </div>
+                        <div class="mc-ticker">AAPL</div>
+                        <div class="mc-name">Apple</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$187</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#0082FB">ME</div><span
+                                class="mc-pct green">+1.59%</span>
+                        </div>
+                        <div class="mc-ticker">META</div>
+                        <div class="mc-name">Meta</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$524</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#F6B217">EN</div><span
+                                class="mc-pct red">-2.75%</span>
+                        </div>
+                        <div class="mc-ticker">ENPH</div>
+                        <div class="mc-name">Enphase</div>
+                        <div class="mc-bar redline"></div>
+                        <div class="mc-price">$118</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#FF4500">RD</div><span
+                                class="mc-pct green">+4.94%</span>
+                        </div>
+                        <div class="mc-ticker">RDDT</div>
+                        <div class="mc-name">Reddit</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$68.4</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#009FE3">AS</div><span
+                                class="mc-pct green">+1.46%</span>
+                        </div>
+                        <div class="mc-ticker">ASML</div>
+                        <div class="mc-name">ASML</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$842</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#1C3A6B">LM</div><span
+                                class="mc-pct green">+0.65%</span>
+                        </div>
+                        <div class="mc-ticker">LMT</div>
+                        <div class="mc-name">Lockheed</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$468</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#30C5A0">RI</div><span
+                                class="mc-pct green">+3.59%</span>
+                        </div>
+                        <div class="mc-ticker">RIVN</div>
+                        <div class="mc-name">Rivian</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$11.2</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#FFC72C">MC</div><span
+                                class="mc-pct green">+0.82%</span>
+                        </div>
+                        <div class="mc-ticker">MCD</div>
+                        <div class="mc-name">McDonald's</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$298</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#555">AA</div><span
+                                class="mc-pct green">+0.82%</span>
+                        </div>
+                        <div class="mc-ticker">AAPL</div>
+                        <div class="mc-name">Apple</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$187</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#0082FB">ME</div><span
+                                class="mc-pct green">+1.59%</span>
+                        </div>
+                        <div class="mc-ticker">META</div>
+                        <div class="mc-name">Meta</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$524</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#F6B217">EN</div><span
+                                class="mc-pct red">-2.75%</span>
+                        </div>
+                        <div class="mc-ticker">ENPH</div>
+                        <div class="mc-name">Enphase</div>
+                        <div class="mc-bar redline"></div>
+                        <div class="mc-price">$118</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#FF4500">RD</div><span
+                                class="mc-pct green">+4.94%</span>
+                        </div>
+                        <div class="mc-ticker">RDDT</div>
+                        <div class="mc-name">Reddit</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$68.4</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#009FE3">AS</div><span
+                                class="mc-pct green">+1.46%</span>
+                        </div>
+                        <div class="mc-ticker">ASML</div>
+                        <div class="mc-name">ASML</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$842</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#1C3A6B">LM</div><span
+                                class="mc-pct green">+0.65%</span>
+                        </div>
+                        <div class="mc-ticker">LMT</div>
+                        <div class="mc-name">Lockheed</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$468</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#30C5A0">RI</div><span
+                                class="mc-pct green">+3.59%</span>
+                        </div>
+                        <div class="mc-ticker">RIVN</div>
+                        <div class="mc-name">Rivian</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$11.2</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#FFC72C">MC</div><span
+                                class="mc-pct green">+0.82%</span>
+                        </div>
+                        <div class="mc-ticker">MCD</div>
+                        <div class="mc-name">McDonald's</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$298</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="strip">
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#C00">TS</div><span
+                                class="mc-pct green">+2.76%</span>
+                        </div>
+                        <div class="mc-ticker">TSLA</div>
+                        <div class="mc-name">Tesla</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$248</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#0078D4">MS</div><span
+                                class="mc-pct green">+0.84%</span>
+                        </div>
+                        <div class="mc-ticker">MSFT</div>
+                        <div class="mc-name">Microsoft</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$415</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#C00">LL</div><span
+                                class="mc-pct green">+1.60%</span>
+                        </div>
+                        <div class="mc-ticker">LLY</div>
+                        <div class="mc-name">Eli Lilly</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$782</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#96BF48">SH</div><span
+                                class="mc-pct green">+2.11%</span>
+                        </div>
+                        <div class="mc-ticker">SHOP</div>
+                        <div class="mc-name">Shopify</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$78.4</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#4285F4">GO</div><span
+                                class="mc-pct green">+1.49%</span>
+                        </div>
+                        <div class="mc-ticker">GOOG</div>
+                        <div class="mc-name">Alphabet</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$172</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#111">PL</div><span
+                                class="mc-pct green">+3.20%</span>
+                        </div>
+                        <div class="mc-ticker">PLTR</div>
+                        <div class="mc-name">Palantir</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$25.1</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#F90">AM</div><span
+                                class="mc-pct green">+1.89%</span>
+                        </div>
+                        <div class="mc-ticker">AMZN</div>
+                        <div class="mc-name">Amazon</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$184</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#0071C5">IN</div><span
+                                class="mc-pct red">-2.75%</span>
+                        </div>
+                        <div class="mc-ticker">INTC</div>
+                        <div class="mc-name">Intel</div>
+                        <div class="mc-bar redline"></div>
+                        <div class="mc-price">$19.8</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#C00">TS</div><span
+                                class="mc-pct green">+2.76%</span>
+                        </div>
+                        <div class="mc-ticker">TSLA</div>
+                        <div class="mc-name">Tesla</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$248</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#0078D4">MS</div><span
+                                class="mc-pct green">+0.84%</span>
+                        </div>
+                        <div class="mc-ticker">MSFT</div>
+                        <div class="mc-name">Microsoft</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$415</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#C00">LL</div><span
+                                class="mc-pct green">+1.60%</span>
+                        </div>
+                        <div class="mc-ticker">LLY</div>
+                        <div class="mc-name">Eli Lilly</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$782</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#96BF48">SH</div><span
+                                class="mc-pct green">+2.11%</span>
+                        </div>
+                        <div class="mc-ticker">SHOP</div>
+                        <div class="mc-name">Shopify</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$78.4</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#4285F4">GO</div><span
+                                class="mc-pct green">+1.49%</span>
+                        </div>
+                        <div class="mc-ticker">GOOG</div>
+                        <div class="mc-name">Alphabet</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$172</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#111">PL</div><span
+                                class="mc-pct green">+3.20%</span>
+                        </div>
+                        <div class="mc-ticker">PLTR</div>
+                        <div class="mc-name">Palantir</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$25.1</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#F90">AM</div><span
+                                class="mc-pct green">+1.89%</span>
+                        </div>
+                        <div class="mc-ticker">AMZN</div>
+                        <div class="mc-name">Amazon</div>
+                        <div class="mc-bar greenline"></div>
+                        <div class="mc-price">$184</div>
+                    </div>
+                    <div class="mc">
+                        <div class="mc-row">
+                            <div class="mc-badge" style="background:#0071C5">IN</div><span
+                                class="mc-pct red">-2.75%</span>
+                        </div>
+                        <div class="mc-ticker">INTC</div>
+                        <div class="mc-name">Intel</div>
+                        <div class="mc-bar redline"></div>
+                        <div class="mc-price">$19.8</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="fade-top"></div>
+        <div class="fade-bot"></div>
+
+        <div class="content">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <span class="logo" style="margin-bottom:0;">StockSwype</span>
+                <button class="alpha-badge" onclick="openAlphaScreen()" aria-label="Open Alpha features">
+                    <span class="alpha-badge-char">α</span>
+                </button>
+            </div>
+            <div class="headline">Stocks worth<br><strong>discovering.</strong></div>
+            <div class="sub">Swipe through stocks matched to your interests. No noise — just what's worth knowing.</div>
+            <button class="cta" onclick="showAuthScreen()">
+                Get started
+                <div class="cta-dot">→</div>
+            </button>
+        </div>
+    </div> <!-- End splash-screen -->
+
+    <!-- Auth Screen -->
+    <div id="auth-screen"
+        style="position:fixed;inset:0;background:#fff;z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:80px;padding-left:24px;padding-right:24px;padding-bottom:32px;opacity:0;pointer-events:none;transition:opacity 0.3s ease;overflow-y:auto;">
+        <div style="width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;">
+            <!-- Wordmark -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+                <span
+                    style="font-family:'DM Mono',monospace;font-size:18px;font-weight:800;letter-spacing:4px;text-transform:uppercase;background:linear-gradient(130deg,#00C853,#69F0AE 55%,#00BFA5);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:0.5px rgba(0,0,0,0.6);">StockSwype</span>
+            </div>
+            <div
+                style="font-family:'DM Sans',sans-serif;font-size:26px;font-weight:700;color:#0a0a0a;text-align:center;margin-bottom:6px;line-height:1.25;">
+                Invest smarter,<br>starting now.</div>
+            <div
+                style="font-family:'DM Sans',sans-serif;font-size:15px;color:#888;text-align:center;margin-bottom:32px;">
+                Discover stocks you'll actually love.</div>
+
+            <!-- Google -->
+            <button onclick="signInWithGoogle()"
+                style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:1.5px solid #ddd;border-radius:12px;padding:14px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;color:#0a0a0a;cursor:pointer;margin-bottom:16px;">
+                <svg width="20" height="20" viewBox="0 0 48 48">
+                    <path fill="#EA4335"
+                        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z" />
+                    <path fill="#4285F4"
+                        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                    <path fill="#FBBC05"
+                        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                    <path fill="#34A853"
+                        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                </svg>
+                Continue with Google
+            </button>
+
+            <!-- Guest -->
+
+            <!-- Disclaimer -->
+            <div
+                style="margin-top:auto;padding-top:32px;font-family:'DM Sans',sans-serif;font-size:11px;color:#bbb;text-align:center;line-height:1.6;max-width:300px;">
+                StockSwype is for informational purposes only and does not constitute financial, investment, or legal
+                advice. Always do your own research before making any investment decisions.
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Logo Split Screen (returning users) -->
+    <div id="logo-split-screen"
+        style="position:fixed;inset:0;z-index:600;display:none;align-items:center;justify-content:center;overflow:hidden;">
+        <div id="logo-split-left"
+            style="position:absolute;left:0;top:0;width:50%;height:100%;background:#00C853;transition:transform 0.55s cubic-bezier(0.76,0,0.24,1);z-index:1;">
+        </div>
+        <div id="logo-split-right"
+            style="position:absolute;right:0;top:0;width:50%;height:100%;background:#00C853;transition:transform 0.55s cubic-bezier(0.76,0,0.24,1);z-index:1;">
+        </div>
+        <div
+            style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:0;pointer-events:none;">
+            <svg id="logo-split-arrow"
+                style="margin-bottom:90px;opacity:0;transform:translateY(18px);transition:opacity 0.5s ease 0.2s, transform 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.2s, stroke 0.4s ease;"
+                width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                <polyline points="16 7 22 7 22 13" />
+            </svg>
+        </div>
+    </div>
+
+    <!-- Username Pick Screen (Google sign-in, first login) -->
+    <div id="username-screen"
+        style="position:fixed;inset:0;background:#fff;z-index:450;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;opacity:0;pointer-events:none;transition:opacity 0.3s ease;">
+        <div style="width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;">
+            <div style="font-size:36px;margin-bottom:16px;">👋</div>
+            <div
+                style="font-family:'DM Sans',sans-serif;font-size:24px;font-weight:700;color:#0a0a0a;text-align:center;margin-bottom:8px;">
+                Pick a username</div>
+            <div
+                style="font-family:'DM Sans',sans-serif;font-size:15px;color:#888;text-align:center;margin-bottom:28px;">
+                This is how other investors will see you.</div>
+            <input id="pick-username" type="text" placeholder="e.g. flusher_trades" class="auth-input"
+                style="width:100%;box-sizing:border-box;margin-bottom:6px;" maxlength="30">
+            <div
+                style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;margin-bottom:16px;align-self:flex-start;padding-left:2px;">
+                Letters, numbers, underscores — at least 3 characters</div>
+
+            <!-- Terms checkbox -->
+            <div style="display:flex;align-items:flex-start;gap:12px;width:100%;margin-bottom:16px;padding:14px 16px;background:#f8f8f8;border-radius:12px;border:1.5px solid #eee;"
+                id="terms-checkbox-row">
+                <div id="terms-checkbox" onclick="toggleTermsCheckbox()"
+                    style="width:20px;height:20px;border-radius:6px;border:2px solid #ccc;flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;">
+                </div>
+                <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#555;line-height:1.5;">
+                    To continue, I certify that I am at least 18 years old and have read and agree to the <span
+                        onclick="openInfoOverlay('terms')"
+                        style="color:#00C853;font-weight:600;cursor:pointer;text-decoration:underline;">Terms &
+                        Conditions</span> and <span onclick="openInfoOverlay('privacy')"
+                        style="color:#00C853;font-weight:600;cursor:pointer;text-decoration:underline;">Privacy
+                        Policy</span>
+                </div>
+            </div>
+
+            <div id="pick-username-error"
+                style="font-family:'DM Sans',sans-serif;font-size:13px;color:#E53935;min-height:18px;margin-bottom:8px;text-align:center;width:100%;">
+            </div>
+            <button id="username-continue-btn" onclick="submitUsername()"
+                style="width:100%;background:#ccc;color:#fff;border:none;border-radius:12px;padding:15px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:not-allowed;transition:background 0.2s;">Continue
+                →</button>
+        </div>
+    </div>
+
+    <!-- Quiz Screen -->
+    <div id="quiz" class="quiz-container">
+        <div class="progress-dots">
+            <div class="dot active"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+        <div
+            style="font-family:'DM Sans',sans-serif;font-size:11px;color:#bbb;text-align:center;padding:2px 24px 0;letter-spacing:0.1px;">
+            Your answers shape your feed — you can only do this once, so choose wisely.</div>
+
+        <!-- Step 1 -->
+        <div class="quiz-step active" id="step-1" data-type="multi">
+            <div class="quiz-title">What are you interested in?</div>
+            <div class="grid-options">
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">AI & Tech</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">EVs & Clean Energy</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Healthcare</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Finance</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Retail</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Gaming</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Real Estate</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Travel</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Semis</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Social Media</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Food</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Defense</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Emerging Mkts</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Crypto</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Energy</div>
+                    <div class="check-circle"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="quiz-step" id="step-2" data-type="single">
+            <div class="quiz-title">How do you describe yourself?</div>
+            <div class="list-options">
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div class="opt-title">Complete beginner</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div class="opt-title">Still learning</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div class="opt-title">Have a portfolio</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div class="opt-title">Experienced trader</div>
+                    <div class="check-circle"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="quiz-step" id="step-3" data-type="single">
+            <div class="quiz-title">What's your investing horizon?</div>
+            <div class="list-options">
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div class="opt-title">Long-term wealth</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div class="opt-title">Medium-term (1–3 yrs)</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div class="opt-title">Short-term gains</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div class="opt-title">Just learning</div>
+                    <div class="check-circle"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="quiz-step" id="step-4" data-type="single">
+            <div class="quiz-title">How do you feel about risk?</div>
+            <div class="list-options">
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div>
+                        <div class="opt-title">Safe</div>
+                        <div class="opt-desc">Slow, steady, reliable</div>
+                    </div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div>
+                        <div class="opt-title">Balanced</div>
+                        <div class="opt-desc">Moderate growth & risk</div>
+                    </div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="selectSingle(this)">
+                    <div>
+                        <div class="opt-title">Aggressive</div>
+                        <div class="opt-desc">High risk, high reward</div>
+                    </div>
+                    <div class="check-circle"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="quiz-step" id="step-5" data-type="multi">
+            <div class="quiz-title">Which of these do you know?</div>
+            <div class="grid-options">
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Apple</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">JPMorgan</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Tesla</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Johnson &amp; Johnson</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Amazon</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Visa</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">Google</div>
+                    <div class="check-circle"></div>
+                </div>
+                <div class="opt-card" onclick="toggleOpt(this)">
+                    <div class="opt-title">ExxonMobil</div>
+                    <div class="check-circle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Footer pinned to bottom -->
+    <div id="quiz-footer" class="quiz-footer">
+        <button class="btn-back" id="btn-back" onclick="prevStep()">←</button>
+        <button class="btn-next" id="btn-next" onclick="nextStep()">Continue</button>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading" class="loading-screen">
+        <div class="loader-title">Building your<br>personal feed...</div>
+        <div class="loader-bar-bg">
+            <div class="loader-bar" id="loader-bar"></div>
+        </div>
+        <div class="loader-pills" id="loader-pills"></div>
+    </div>
+
+    <!-- Feed Screen -->
+    <div id="feed" class="feed-screen">
+        <div class="nav-bar">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div class="nav-logo">StockSwype</div>
+                <button class="alpha-badge" onclick="openAlphaScreen()" aria-label="Open Alpha features">
+                    <span class="alpha-badge-char">α</span>
+                </button>
+            </div>
+            <div class="nav-pill" id="feed-count">7 left</div>
+            <div class="nav-saved" onclick="showWatchlist()">Saved <div class="saved-count" id="saved-count">0</div>
+            </div>
+        </div>
+
+        <div class="card-stack" id="card-stack">
+            <!-- Cards injected via JS -->
+        </div>
+
+    </div>
+
+    <!-- Market Index Pill Row -->
+    <div id="index-cards-row">
+        <div class="index-pills-label">Indexes</div>
+        <div class="index-pills-row">
+            <div class="index-pill"><span class="index-pill-label">S&amp;P 500</span><span id="idx-change-_GSPC" class="idx-pill-change">—</span></div>
+            <div class="index-pill"><span class="index-pill-label">Dow</span><span id="idx-change-_DJI" class="idx-pill-change">—</span></div>
+            <div class="index-pill"><span class="index-pill-label">NASDAQ</span><span id="idx-change-_IXIC" class="idx-pill-change">—</span></div>
+            <div class="index-pill"><span class="index-pill-label">VIX</span><span id="idx-change-_VIX" class="idx-pill-change">—</span></div>
+        </div>
+    </div>
+
+    <!-- Watchlist Screen -->
+    <div id="watchlist" class="watchlist-screen">
+        <div class="wl-header">
+            <div class="wl-back" onclick="hideWatchlist()">←</div>
+            <div class="wl-title">Saved stocks</div>
+            <div onclick="clearAllSaved()"
+                style="margin-left:auto;font-family:'DM Sans',sans-serif;font-size:12px;color:#E53935;cursor:pointer;font-weight:600;background:rgba(229,57,53,0.1);padding:5px 12px;border-radius:20px;">
+                Clear All</div>
+        </div>
+        <div class="wl-sub" id="wl-count">0 STOCKS SAVED</div>
+        <div class="wl-list" id="wl-list-container">
+            <!-- Items injected via JS -->
+        </div>
+    </div>
+
+    <!-- Watchlist Detail Modal -->
+    <div id="wl-detail-modal" class="wl-detail-modal">
+        <div class="wl-detail-header">
+            <div class="wl-detail-back" onclick="closeWlDetail()">←</div>
+            <div class="wl-detail-title" id="wl-detail-title"></div>
+        </div>
+        <div class="wl-detail-body" id="wl-detail-body"></div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="share-overlay" class="share-overlay" onclick="closeShareModal()"></div>
+    <div id="share-modal" class="share-modal">
+        <div class="share-modal-handle"></div>
+        <div class="share-modal-header">
+            <div class="share-modal-title" id="share-modal-title">Send to a Friend</div>
+            <button class="share-modal-close" onclick="closeShareModal()">×</button>
+        </div>
+        <div class="share-modal-body" id="share-modal-body">
+            <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#aaa;text-align:center;padding:20px;">
+                Loading friends...</div>
+        </div>
+    </div>
+
+    <!-- Friend History Modal -->
+    <div id="fr-hist-modal" class="fr-hist-modal">
+        <div class="fr-hist-header">
+            <div class="fr-hist-title" id="fr-hist-title"></div>
+            <button class="fr-hist-close" onclick="closeFriendHistory()">×</button>
+        </div>
+        <div class="fr-hist-body" id="fr-hist-body"></div>
+    </div>
+
+    <!-- Shared Portfolio Screen -->
+    <div id="pf-shared-screen" class="pf-shared-screen" style="display:none;">
+        <div style="display:flex;align-items:center;padding:0 24px 14px;gap:12px;flex-shrink:0;">
+            <div onclick="closePfShared()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←</div>
+            <div style="flex:1;min-width:0;">
+                <div id="pf-shared-name"
+                    style="font-family:'DM Sans',sans-serif;font-size:18px;font-weight:700;color:#0a0a0a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                </div>
+                <div id="pf-shared-tickers"
+                    style="font-family:'DM Mono',monospace;font-size:11px;color:#aaa;margin-top:1px;"></div>
+            </div>
+            <div id="pf-shared-badge" class="pf-shared-badge"></div>
+        </div>
+        <div id="pf-shared-body"
+            style="flex:1;overflow-y:auto;padding:0 24px 32px;display:flex;flex-direction:column;gap:24px;"></div>
+    </div>
+
+    <!-- News Screen -->
+    <div id="news-scene" class="news-screen">
+        <div class="news-top-bar">
+            <div class="news-header" style="padding:0;">Watchlist News</div>
+            <button class="news-refresh-btn" onclick="loadWatchlistNews()">↻ Refresh</button>
+        </div>
+        <div class="news-ticker-filters" id="news-ticker-filters"></div>
+        <div id="news-sub-filters"
+            style="display:none;padding:0 16px 8px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:8px;">
+        </div>
+        <div class="news-feed" id="news-feed">
+            <!-- News injected via JS -->
+        </div>
+    </div>
+
+    <!-- Portfolio Screen -->
+    <div id="portfolio-scene" class="portfolio-screen">
+
+        <!-- Portfolio Loading Overlay -->
+        <div id="pf-loading" class="pf-loading-overlay" style="display:none;">
+            <div
+                style="font-family:'DM Sans',sans-serif;font-size:24px;font-weight:500;text-align:center;letter-spacing:-0.5px;margin-bottom:24px;line-height:1.3;">
+                Building your<br>portfolio...</div>
+            <div
+                style="width:100%;max-width:240px;height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden;margin-bottom:40px;">
+                <div id="pf-load-bar"
+                    style="height:100%;width:0%;background:linear-gradient(90deg,#00C853,#69F0AE);border-radius:2px;transition:width 0.1s linear;">
+                </div>
+            </div>
+            <div id="pf-load-pills" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:280px;">
+            </div>
+        </div>
+
+        <!-- Landing Hub -->
+        <div id="pf-hub" style="display:flex;flex-direction:column;height:100%;overflow-y:auto;">
+            <div class="news-header" style="font-size:26px;font-weight:800;line-height:1.2;padding:16px 24px 10px;">
+                Portfolio Builder</div>
+            <div
+                style="padding:0 24px 16px;font-family:'DM Sans',sans-serif;font-size:13px;color:#888;line-height:1.65;">
+                Craft custom portfolios based on your saved stocks. Obtain historical performance and benchmark against
+                the market.</div>
+            <div style="padding:0 24px;display:flex;flex-direction:column;gap:12px;">
+                <!-- Portfolio Generation -->
+                <div class="pf-hub-btn" onclick="openPfPicker()">
+                    <div class="pf-hub-btn-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00C853" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+                            <path d="M22 12A10 10 0 0 0 12 2v10z" />
+                        </svg>
+                    </div>
+                    <div class="pf-hub-btn-text">
+                        <div class="pf-hub-btn-title">Portfolio Generation</div>
+                        <div class="pf-hub-btn-sub">Build &amp; backtest a custom portfolio</div>
+                    </div>
+                    <div class="pf-tooltip-wrap" id="pf-gen-tip-wrap" onclick="pfToggleTip('pf-gen-tip-wrap',event)">
+                        <div class="pf-info-btn">i</div>
+                        <div class="pf-tooltip-box">Our engine uses historical data to backtest your selections,
+                            calculating risk, return, and market alpha.</div>
+                    </div>
+                </div>
+                <!-- Saved Portfolios -->
+                <div class="pf-hub-btn" onclick="openPfSaved()">
+                    <div class="pf-hub-btn-icon" style="background:rgba(0,200,83,0.1);">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00C853" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                        </svg>
+                    </div>
+                    <div class="pf-hub-btn-text">
+                        <div class="pf-hub-btn-title">Saved Portfolios</div>
+                        <div class="pf-hub-btn-sub">View your previously generated builds</div>
+                    </div>
+                    <div id="pf-saved-badge"
+                        style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:#00C853;background:rgba(0,200,83,0.1);padding:4px 10px;border-radius:100px;flex-shrink:0;display:none;">
+                        0</div>
+                </div>
+            </div>
+            <div style="margin-top:auto;padding:20px 24px 8px;border-top:1px solid #f0f0f0;margin-top:32px;">
+                <div
+                    style="font-family:'DM Sans',sans-serif;font-size:11px;color:#bbb;line-height:1.65;text-align:center;">
+                    StockSwype provides simulations for educational purposes only. We are not a financial advisor and
+                    are not responsible for real-world trading losses. Invest at your own risk.</div>
+            </div>
+        </div>
+
+        <!-- Success Overlay -->
+        <div id="pf-success" class="pf-success-overlay" style="display:none;">
+            <div style="text-align:center;margin-bottom:8px;">
+                <div
+                    style="width:56px;height:56px;border-radius:50%;background:rgba(0,200,83,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00C853" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                </div>
+                <div
+                    style="font-family:'DM Sans',sans-serif;font-size:20px;font-weight:800;color:#0a0a0a;line-height:1.3;">
+                    Portfolio Analysed</div>
+                <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#aaa;margin-top:4px;">12-month
+                    backtest complete</div>
+            </div>
+            <div id="pf-s-stat1" class="pf-success-stat">
+                <div class="pf-success-val" id="pf-s-val1">—</div>
+                <div class="pf-success-lbl">Historical Return</div>
+            </div>
+            <div id="pf-s-stat2" class="pf-success-stat">
+                <div class="pf-success-val" style="color:#FF9800;" id="pf-s-val2">—</div>
+                <div class="pf-success-lbl">Portfolio Volatility</div>
+            </div>
+            <div id="pf-s-stat3" class="pf-success-stat">
+                <div class="pf-success-val" id="pf-s-val3">—</div>
+                <div class="pf-success-lbl">Alpha vs. S&amp;P 500</div>
+            </div>
+        </div>
+
+        <!-- Step 1: Stock Picker -->
+        <div id="pf-picker" style="display:flex;flex-direction:column;height:100%;">
+            <div style="padding:0 24px 16px;">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                    <div onclick="openPfHub()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←
+                    </div>
+                    <div
+                        style="font-family:'DM Sans',sans-serif;font-size:22px;font-weight:700;color:#0a0a0a;line-height:1.2;">
+                        Select your stocks</div>
+                </div>
+                <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#888;margin-top:2px;">Pick at least 2
+                    from your saved stocks</div>
+            </div>
+            <div id="pf-picker-list"
+                style="flex:1;overflow-y:auto;padding:0 24px;display:flex;flex-direction:column;gap:10px;">
+                <!-- Injected by JS -->
+            </div>
+            <div id="pf-build-btn-wrap"
+                style="padding:16px 24px;background:#fff;border-top:1px solid #f0f0f0;display:none;">
+                <button onclick="openPfSliders()"
+                    style="width:100%;background:#fff;color:#00C853;border:2px solid #00C853;border-radius:14px;padding:16px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,200,83,0.15);">Build
+                    Portfolio →</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Allocation Sliders -->
+        <div id="pf-sliders" style="display:none;flex-direction:column;height:100%;">
+            <div style="display:flex;align-items:center;padding:0 24px 16px;gap:14px;">
+                <div onclick="openPfPicker()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←</div>
+                <div>
+                    <div style="font-family:'DM Sans',sans-serif;font-size:22px;font-weight:700;color:#0a0a0a;">Set
+                        allocations</div>
+                </div>
+            </div>
+            <div style="padding:0 24px 12px;display:flex;gap:8px;">
+                <button onclick="pfEqualWeight()"
+                    style="flex:1;background:#f4f4f5;border:none;border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:#0a0a0a;cursor:pointer;">Equal
+                    Weight</button>
+                <button onclick="pfMarketCapWeight()"
+                    style="flex:1;background:#f4f4f5;border:none;border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:#0a0a0a;cursor:pointer;">Market
+                    Cap</button>
+            </div>
+            <div style="padding:0 24px 12px;">
+                <div
+                    style="background:#f4f4f5;border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-family:'DM Sans',sans-serif;font-size:13px;color:#888;">Total allocated</span>
+                    <span id="pf-total-label"
+                        style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:#E53935;">0%</span>
+                </div>
+            </div>
+            <div id="pf-slider-list"
+                style="flex:1;overflow-y:auto;padding:0 24px;display:flex;flex-direction:column;gap:20px;">
+                <!-- Injected by JS -->
+            </div>
+            <div style="padding:16px 24px;background:#fff;border-top:1px solid #f0f0f0;">
+                <button id="pf-analyse-btn" onclick="openPfResults()" disabled
+                    style="width:100%;background:#f4f4f5;color:#bbb;border:2px solid #e0e0e0;border-radius:14px;padding:16px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;cursor:not-allowed;">Analyse</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Results -->
+        <div id="pf-results" style="display:none;flex-direction:column;height:100%;overflow-y:auto;">
+            <div style="display:flex;align-items:center;padding:0 24px 16px;gap:14px;flex-shrink:0;">
+                <div onclick="openPfSliders()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←
+                </div>
+                <div>
+                    <div
+                        style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;letter-spacing:2px;color:#aaa;text-transform:uppercase;margin-bottom:2px;">
+                        Analysis</div>
+                    <div id="pf-result-title"
+                        style="font-family:'DM Sans',sans-serif;font-size:18px;font-weight:700;color:#0a0a0a;"></div>
+                </div>
+            </div>
+            <div id="pf-results-body"
+                style="padding:0 24px 24px;display:flex;flex-direction:column;gap:24px;flex-shrink:0;">
+                <!-- Injected by JS -->
+            </div>
+            <div id="pf-save-btn-wrap"
+                style="padding:16px 24px 8px;background:#fff;border-top:1px solid #f0f0f0;flex-shrink:0;display:none;">
+                <button onclick="savePfPortfolio()"
+                    style="width:100%;background:#fff;color:#00C853;border:2px solid #00C853;border-radius:14px;padding:16px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,200,83,0.15);">Save
+                    Portfolio</button>
+            </div>
+        </div>
+
+        <!-- Saved Portfolios Step -->
+        <div id="pf-saved" style="display:none;flex-direction:column;height:100%;">
+            <div style="display:flex;align-items:center;padding:0 24px 16px;gap:14px;flex-shrink:0;">
+                <div onclick="openPfHub()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←</div>
+                <div style="font-family:'DM Sans',sans-serif;font-size:22px;font-weight:700;color:#0a0a0a;">Saved
+                    Portfolios</div>
+            </div>
+            <div id="pf-saved-list"
+                style="flex:1;overflow-y:auto;padding:0 24px 24px;display:flex;flex-direction:column;gap:12px;"></div>
+        </div>
+
+        <!-- Saved Portfolio Detail View -->
+        <div id="pf-saved-detail" style="display:none;flex-direction:column;height:100%;overflow-y:auto;">
+            <div style="display:flex;align-items:center;padding:0 24px 16px;gap:14px;flex-shrink:0;">
+                <div onclick="openPfSaved()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←</div>
+                <div style="flex:1;min-width:0;">
+                    <div id="pf-sd-name"
+                        style="font-family:'DM Sans',sans-serif;font-size:18px;font-weight:700;color:#0a0a0a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    </div>
+                    <div id="pf-sd-tickers"
+                        style="font-family:'DM Mono',monospace;font-size:11px;color:#aaa;margin-top:1px;"></div>
+                </div>
+                <div id="pf-sd-date" style="font-family:'DM Sans',sans-serif;font-size:11px;color:#aaa;flex-shrink:0;">
+                </div>
+            </div>
+            <div id="pf-sd-body" style="padding:0 24px 32px;display:flex;flex-direction:column;gap:24px;flex-shrink:0;">
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="bottom-nav" id="app-nav">
+        <div class="nav-item active" id="nav-btn-home" onclick="navTo('home')">
+            <div class="nav-icon">▤</div>
+            Home
+        </div>
+        <div class="nav-item" id="nav-btn-news" onclick="navTo('news')">
+            <div class="nav-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4h16v16H4z" rx="2" />
+                    <path d="M8 9h8M8 13h6M8 17h4" />
+                </svg>
+            </div>
+            News
+        </div>
+        <div class="nav-item" id="nav-btn-portfolio" onclick="navTo('portfolio')">
+            <div class="nav-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <path d="M8 21h8M12 17v4" />
+                    <path d="M7 10l3 3 3-3 4 4" />
+                </svg>
+            </div>
+            Portfolio
+        </div>
+        <div class="nav-item" id="nav-btn-friends" onclick="navTo('friends')" style="position:relative;">
+            <div class="nav-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="7" r="3" />
+                    <path d="M3 20c0-4 2.7-6 6-6s6 2 6 6" />
+                    <circle cx="17" cy="8" r="2.5" />
+                    <path d="M21 20c0-3-1.8-5-4-5" />
+                </svg>
+            </div>
+            Friends
+            <span id="friends-badge"
+                style="display:none;position:absolute;top:4px;right:10px;width:8px;height:8px;background:#E53935;border-radius:50%;border:1.5px solid #fff;"></span>
+        </div>
+        <div class="nav-item" id="nav-btn-profile" onclick="navTo('profile')">
+            <div class="nav-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="7" r="4" />
+                    <path d="M4 21c0-5 3.6-8 8-8s8 3 8 8" />
+                </svg>
+            </div>
+            Profile
+        </div>
+    </div>
+
+    <!-- Friends Screen -->
+    <div id="friends-scene" class="friends-screen">
+        <div class="news-header">Friends</div>
+
+        <!-- Search bar -->
+        <div style="padding: 16px 20px 16px;">
+            <div
+                style="background:#f4f4f5;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:10px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input id="fr-search-input" type="text" placeholder="Find friends by username..."
+                    style="background:none;border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:14px;color:#0a0a0a;width:100%;"
+                    oninput="searchFriends(this.value)" />
+            </div>
+            <div id="fr-search-results" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="fr-scroll" id="fr-scroll">
+            <!-- Inbox -->
+            <div id="fr-inbox-section">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 20px 10px;">
+                    <div
+                        style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;">
+                        Inbox</div>
+                    <div onclick="clearInbox()"
+                        style="font-family:'DM Sans',sans-serif;font-size:12px;color:#E53935;font-weight:600;background:rgba(229,57,53,0.1);padding:4px 12px;border-radius:20px;cursor:pointer;">
+                        Clear All</div>
+                </div>
+                <div id="fr-inbox"></div>
+            </div>
+            <!-- Friends list -->
+            <div id="fr-list"></div>
+        </div>
+    </div>
+
+    <!-- Profile Screen -->
+    <div id="profile-scene" class="profile-screen">
+        <div class="news-header">Profile</div>
+        <div class="pr-scroll">
+            <div class="pr-header">
+                <div style="position:relative;display:inline-block;margin-bottom:16px;">
+                    <div class="pr-avatar" id="pr-avatar-initials"
+                        style="margin-bottom:0;overflow:hidden;position:relative;">
+                        <img id="pr-avatar-img" src="" alt=""
+                            style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:50%;" />
+                        <span id="pr-avatar-text">SS</span>
+                    </div>
+                    <div onclick="triggerAvatarUpload()"
+                        style="position:absolute;bottom:2px;right:2px;width:26px;height:26px;border-radius:50%;background:#00C853;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,200,83,0.4);">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                    </div>
+                    <input id="avatar-file-input" type="file" accept="image/*" style="display:none;"
+                        onchange="uploadAvatar(this)" />
+                </div>
+                <div id="pr-remove-photo" onclick="removeAvatar()"
+                    style="display:none;font-family:'DM Sans',sans-serif;font-size:12px;color:#E53935;cursor:pointer;margin-bottom:10px;">
+                    Remove photo</div>
+                <div class="pr-handle" id="pr-user-email">Guest</div>
+                <div class="pr-member" id="pr-member-label">Exploring as guest</div>
+            </div>
+
+            <div class="pr-stats">
+                <div class="pr-stat">
+                    <div class="pr-s-val" id="pr-saved-count">0</div>
+                    <div class="pr-s-lbl">Saved</div>
+                </div>
+                <div class="pr-stat">
+                    <div class="pr-s-val" id="pr-sectors-count">0</div>
+                    <div class="pr-s-lbl">Sectors</div>
+                </div>
+                <div class="pr-stat">
+                    <div class="pr-s-val" id="pr-swipes-count">—</div>
+                    <div class="pr-s-lbl">Swipes</div>
+                </div>
+                <div class="pr-stat">
+                    <div class="pr-s-val" id="pr-friends-count">0</div>
+                    <div class="pr-s-lbl">Friends</div>
+                </div>
+            </div>
+
+            <div class="pr-sect-title">My Interests</div>
+            <div class="pr-chips" id="pr-interests"></div>
+
+            <div class="pr-sect-title" style="margin-top:24px">Risk Profile</div>
+            <div class="pr-badge" id="pr-risk-badge">Balanced</div>
+            <div class="pr-desc" id="pr-risk-desc">Targeting steady growth with a moderate tolerance for portfolio
+                volatility.</div>
+
+            <div class="pr-sect-title">Investing Goal</div>
+            <div class="pr-desc" id="pr-goal-desc">Long-term wealth accumulation.</div>
+
+            <div class="pr-settings">
+                <div class="pr-st-row" onclick="openInfoOverlay('about')" style="cursor:pointer;">
+                    <div class="pr-st-lbl">About StockSwype</div>
+                    <div class="pr-st-val">›</div>
+                </div>
+                <div class="pr-st-row" onclick="openInfoOverlay('privacy')" style="cursor:pointer;">
+                    <div class="pr-st-lbl">Privacy Policy</div>
+                    <div class="pr-st-val">›</div>
+                </div>
+                <div class="pr-st-row" onclick="openInfoOverlay('terms')" style="cursor:pointer;">
+                    <div class="pr-st-lbl">Terms & Conditions</div>
+                    <div class="pr-st-val">›</div>
+                </div>
+                <div class="pr-st-row" id="pr-signout-row" onclick="signOut()" style="display:none;">
+                    <div class="pr-st-lbl text-red">Sign Out</div>
+                </div>
+                <div class="pr-st-row" id="pr-delete-row" onclick="openDeleteModal()"
+                    style="display:none;cursor:pointer;">
+                    <div class="pr-st-lbl" style="color:#E53935;opacity:0.6;font-size:13px;">Delete Account</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Zoom Modal -->
+    <div class="chart-zoom-modal" id="chart-modal">
+        <div class="cz-close" onclick="closeChart()">✕</div>
+        <div class="cz-details">
+            <div class="cz-ticker" id="cz-ticker">TICKER</div>
+            <div class="cz-price" id="cz-price">$0.00</div>
+        </div>
+        <div class="cz-container" id="cz-container"></div>
+    </div>
+
+    <div class="toast" id="toast">Added to Watchlist</div>
+
+    <!-- Info Overlay (About / Privacy / Terms) -->
+    <div id="info-overlay"
+        style="position:fixed;inset:0;background:#fff;z-index:700;display:none;flex-direction:column;opacity:0;transition:opacity 0.25s ease;">
+        <div style="display:flex;align-items:center;padding:54px 20px 16px;border-bottom:1px solid #f0f0f0;">
+            <div onclick="closeInfoOverlay()"
+                style="width:36px;height:36px;border-radius:50%;background:#f4f4f5;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-right:14px;flex-shrink:0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                </svg>
+            </div>
+            <div id="info-overlay-title"
+                style="font-family:'DM Sans',sans-serif;font-size:18px;font-weight:700;color:#0a0a0a;"></div>
+        </div>
+        <div id="info-overlay-body"
+            style="flex:1;overflow-y:auto;padding:24px 24px 60px;font-family:'DM Sans',sans-serif;font-size:14px;color:#333;line-height:1.7;">
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/feed.js"></script>
+    <script src="js/watchlist.js"></script>
+    <script src="js/portfolio.js"></script>
+    <script src="js/friends.js"></script>
+    <!-- Delete Account Modal -->
+    <div id="delete-modal"
+        style="position:fixed;inset:0;z-index:900;display:none;align-items:flex-end;justify-content:center;">
+        <div id="delete-modal-bg" onclick="closeDeleteModal()"
+            style="position:absolute;inset:0;background:rgba(0,0,0,0.5);"></div>
+        <div
+            style="position:relative;width:100%;max-width:480px;background:#fff;border-radius:24px 24px 0 0;padding:28px 24px 48px;z-index:1;">
+            <div style="width:36px;height:4px;background:#e0e0e0;border-radius:100px;margin:0 auto 24px;"></div>
+            <div id="delete-step-1">
+                <div
+                    style="font-family:'DM Sans',sans-serif;font-size:20px;font-weight:700;color:#0a0a0a;margin-bottom:8px;">
+                    Delete account?</div>
+                <div
+                    style="font-family:'DM Sans',sans-serif;font-size:14px;color:#888;line-height:1.6;margin-bottom:24px;">
+                    This will permanently delete your account, saved stocks, friends, and all data. This cannot be
+                    undone.</div>
+                <button onclick="deleteStep2()"
+                    style="width:100%;background:#E53935;color:#fff;border:none;border-radius:12px;padding:15px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;">Continue</button>
+                <button onclick="closeDeleteModal()"
+                    style="width:100%;background:#f4f4f5;color:#0a0a0a;border:none;border-radius:12px;padding:15px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;">Cancel</button>
+            </div>
+            <div id="delete-step-2" style="display:none;">
+                <div style="font-size:32px;text-align:center;margin-bottom:12px;">⚠️</div>
+                <div
+                    style="font-family:'DM Sans',sans-serif;font-size:20px;font-weight:700;color:#E53935;text-align:center;margin-bottom:8px;">
+                    Are you sure?</div>
+                <div
+                    style="font-family:'DM Sans',sans-serif;font-size:14px;color:#888;line-height:1.6;text-align:center;margin-bottom:24px;">
+                    There is no going back. Your account and all your data will be gone forever.</div>
+                <button id="delete-confirm-btn" onclick="confirmDeleteAccount()"
+                    style="width:100%;background:#E53935;color:#fff;border:none;border-radius:12px;padding:15px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;">Yes,
+                    delete my account</button>
+                <button onclick="closeDeleteModal()"
+                    style="width:100%;background:#f4f4f5;color:#0a0a0a;border:none;border-radius:12px;padding:15px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <!-- Alpha Transition Overlay -->
+    <div id="alpha-transition-screen">
+        <div id="alpha-transition-left"></div>
+        <div id="alpha-transition-right"></div>
+        <div id="alpha-transition-symbol">α</div>
+    </div>
+
+    <!-- Alpha Screen -->
+    <div id="alpha-screen">
+        <button class="alpha-close-btn" onclick="closeAlphaScreen()">✕</button>
+        <div class="alpha-screen-inner">
+            <div class="alpha-header">
+                <span class="alpha-logo-wordmark">StockSwype</span>
+                <div class="alpha-word-container">
+                    <span class="alpha-word" id="alpha-word-text">Alpha</span>
+                    <span class="alpha-symbol-big" id="alpha-symbol-text">α</span>
+                </div>
+            </div>
+            <div class="alpha-price-block">
+                <div class="alpha-price-amount">$6.49</div>
+                <div class="alpha-price-period">per month</div>
+            </div>
+            <div class="alpha-tagline-wrap">
+                <div class="alpha-tagline visible" id="alpha-tagline-0">Cheaper than your morning iced latte</div>
+                <div class="alpha-tagline" id="alpha-tagline-1">Less than one burrito a month</div>
+                <div class="alpha-tagline" id="alpha-tagline-2">Skip one coffee. Own the market.</div>
+                <div class="alpha-tagline" id="alpha-tagline-3">Your Netflix costs more. Just saying.</div>
+                <div class="alpha-tagline" id="alpha-tagline-4">Practically free alpha.</div>
+            </div>
+            <div class="alpha-divider"></div>
+            <div class="alpha-features">
+                <div class="alpha-feature-row">
+                    <div class="alpha-feature-icon">α</div>
+                    <div class="alpha-feature-text">
+                        <div class="alpha-feature-title">Unlimited Swipes &amp; Backtests</div>
+                        <div class="alpha-feature-desc">No daily caps. Test 100+ strategies an hour to build your perfect Alpha portfolio.</div>
+                    </div>
+                </div>
+                <div class="alpha-feature-row">
+                    <div class="alpha-feature-icon">α</div>
+                    <div class="alpha-feature-text">
+                        <div class="alpha-feature-title">Pro-Grade Filters</div>
+                        <div class="alpha-feature-desc">Filter by Institutional Ownership, Short Interest, and RSI Divergence. See what the big money is doing before you do.</div>
+                    </div>
+                </div>
+                <div class="alpha-feature-row">
+                    <div class="alpha-feature-icon">α</div>
+                    <div class="alpha-feature-text">
+                        <div class="alpha-feature-title">Investor DNA Reset</div>
+                        <div class="alpha-feature-desc">Retake or fine-tune your initial quiz at any time to explore new sectors, risk profiles, or investing styles.</div>
+                    </div>
+                </div>
+                <div class="alpha-feature-row">
+                    <div class="alpha-feature-icon">α</div>
+                    <div class="alpha-feature-text">
+                        <div class="alpha-feature-title">League Pass <span style="font-size:11px;color:#aaa;font-weight:500;">(Coming Soon)</span></div>
+                        <div class="alpha-feature-desc">Alpha members get unlimited Leagues and multiple entries. Free users are limited to 1 league with 3 friends.</div>
+                    </div>
+                </div>
+                <div class="alpha-feature-row">
+                    <div class="alpha-feature-icon">α</div>
+                    <div class="alpha-feature-text">
+                        <div class="alpha-feature-title">Market Sentiment Index</div>
+                        <div class="alpha-feature-desc">See how the StockSwype community is leaning. Bullish or Bearish on $AAPL today? Now you'll know.</div>
+                    </div>
+                </div>
+                <div class="alpha-feature-row">
+                    <div class="alpha-feature-icon">α</div>
+                    <div class="alpha-feature-text">
+                        <div class="alpha-feature-title">Alpha AI Insights</div>
+                        <div class="alpha-feature-desc">Claude-powered two-sentence TLDRs on why a stock is trending. Earnings calls and breaking news, distilled instantly.</div>
+                    </div>
+                </div>
+                <div class="alpha-feature-row">
+                    <div class="alpha-feature-icon">α</div>
+                    <div class="alpha-feature-text">
+                        <div class="alpha-feature-title">Real-Time Volatility Alerts</div>
+                        <div class="alpha-feature-desc">Get notified the moment any stock in your Swyped list moves more than 3% in either direction.</div>
+                    </div>
+                </div>
+            </div>
+            <button class="alpha-cta-btn" id="alpha-cta-btn" onclick="alphaNotifyMe()">Notify Me When Alpha Launches</button>
+        </div>
+    </div>
+
+</body>
+
+</html>
