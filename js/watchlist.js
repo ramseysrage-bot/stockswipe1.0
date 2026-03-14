@@ -244,8 +244,8 @@
                                 <div class="wl-t">${t}</div>
                                 <div class="wl-n">${stock.name}</div>
                             </div>
-                            ${stock.change && stock.change !== '...' ? `<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:${color};background:${bg};padding:3px 8px;border-radius:8px;white-space:nowrap;">${stock.change}</div>` : ''}
                         </div>
+                        ${stock.change && stock.change !== '...' ? `<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:${color};background:${bg};padding:3px 8px;border-radius:8px;white-space:nowrap;margin-right:8px;">${stock.change}</div>` : ''}
                         <button class="wl-share-btn" onclick="shareStock('${t}', event)" aria-label="Send ${t} to a friend">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>

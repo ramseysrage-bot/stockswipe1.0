@@ -648,11 +648,13 @@
             if (loadEl) { loadEl.style.display = 'flex'; loadEl.innerText = 'Loading…'; }
             canvasEl.style.display = 'none';
 
-            // Fetch via corsproxy (same pattern as rest of app)
+            // Fetch chart data via Supabase Edge Function
             const p = _rangeParams[range];
-            const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${p.range}&interval=${p.interval}&_=${Date.now()}`;
             try {
-                const json = await fetchWithFallback(yahooUrl);
+                const edgeUrl = EDGE_FN_URL + '?tickers=' + encodeURIComponent(ticker) + '&mode=chart&range=' + p.range + '&interval=' + p.interval;
+                const json = await fetch(edgeUrl, {
+                    headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_JWT, 'apikey': SUPABASE_ANON_JWT }
+                }).then(r => r.json());
                 const result = json?.chart?.result?.[0];
                 if (!result) throw new Error('No data');
 
