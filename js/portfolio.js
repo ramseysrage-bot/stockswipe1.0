@@ -94,6 +94,7 @@
             if (_pfSelected.has(ticker)) {
                 _pfSelected.delete(ticker);
             } else {
+                if (_pfSelected.size >= 4) { showToast('Max 4 stocks per portfolio.'); return; }
                 _pfSelected.add(ticker);
             }
             const row = document.getElementById('pf-row-' + ticker);
