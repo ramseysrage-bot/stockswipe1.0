@@ -464,6 +464,25 @@
             '5Y': { range: '5y', interval: '1mo' },
         };
 
+        // Converts a chart range key to Polygon API parameters
+        function _polyRange(rangeKey) {
+            const now = new Date();
+            const to = now.toISOString().split('T')[0];
+            const from = new Date(now);
+            const cfg = {
+                '1D': [1,   '5',  'minute'],
+                '1W': [7,   '1',  'hour'],
+                '1M': [31,  '1',  'day'],
+                '3M': [92,  '1',  'day'],
+                '6M': [184, '1',  'day'],
+                '1Y': [366, '1',  'week'],
+                '5Y': [1827,'1',  'month'],
+            };
+            const [days, mult, timespan] = cfg[rangeKey] || cfg['1M'];
+            from.setDate(from.getDate() - days);
+            return { from: from.toISOString().split('T')[0], to, mult, timespan };
+        }
+
         // Date label formatter depending on the selected range
         function _formatLabel(tsMs, range) {
             const d = new Date(tsMs);
@@ -648,26 +667,15 @@
             if (loadEl) { loadEl.style.display = 'flex'; loadEl.innerText = 'Loading…'; }
             canvasEl.style.display = 'none';
 
-            // Fetch chart data via Supabase Edge Function
-            const p = _rangeParams[range];
+            // Fetch chart data via Polygon (CORS-friendly)
+            const { from, to, mult, timespan } = _polyRange(range);
             try {
-                const edgeUrl = EDGE_FN_URL + '?tickers=' + encodeURIComponent(ticker) + '&mode=chart&range=' + p.range + '&interval=' + p.interval;
-                const json = await fetch(edgeUrl, {
-                    headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_JWT, 'apikey': SUPABASE_ANON_JWT }
-                }).then(r => r.json());
-                const result = json?.chart?.result?.[0];
-                if (!result) throw new Error('No data');
+                const polyUrl = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/${mult}/${timespan}/${from}/${to}?adjusted=true&sort=asc&limit=500&apiKey=${POLYGON_KEY}`;
+                const json = await fetch(polyUrl).then(r => r.json());
+                const results = json.results || [];
+                if (!results.length) throw new Error('No data');
 
-                const timestamps = result.timestamp || [];
-                const closes = result.indicators?.quote?.[0]?.close || [];
-
-                // Build clean point array — skip nulls
-                const points = [];
-                for (let i = 0; i < timestamps.length; i++) {
-                    if (closes[i] != null) {
-                        points.push({ t: timestamps[i] * 1000, y: closes[i] });
-                    }
-                }
+                const points = results.map(r => ({ t: r.t, y: r.c }));
 
                 if (points.length === 0) throw new Error('Empty series');
 
@@ -844,15 +852,7 @@
         const _spkCache = {};
         const _sparklineInstances = {};
         // Range → Yahoo Finance params (shared with expanded chart)
-        const _spkRangeParams = {
-            '1D': { range: '1d', interval: '5m' },
-            '1W': { range: '5d', interval: '1h' },
-            '1M': { range: '1mo', interval: '1d' },
-            '3M': { range: '3mo', interval: '1d' },
-            '6M': { range: '6mo', interval: '1d' },
-            '1Y': { range: '1y', interval: '1wk' },
-            '5Y': { range: '5y', interval: '1mo' },
-        };
+        const _spkRangeParams = {}; // kept for compat; Polygon params come from _polyRange
 
         function _spkLabel(tsMs, range) {
             const d = new Date(tsMs);
@@ -1044,20 +1044,14 @@
                 _renderSparkline(ticker, points, timestamps, range);
                 return;
             }
-            const p = _spkRangeParams[range];
-            if (!p) return;
-            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${p.range}&interval=${p.interval}&_=${Date.now()}`;
+            const { from, to, mult, timespan } = _polyRange(range);
             try {
-                const json = await fetchWithFallback(url);
-                const result = json?.chart?.result?.[0];
-                if (!result) return;
-                const ts = result.timestamp || [];
-                const cl = result.indicators?.quote?.[0]?.close || [];
-                const points = [], timestamps = [];
-                for (let i = 0; i < ts.length; i++) {
-                    if (cl[i] != null) { points.push(cl[i]); timestamps.push(ts[i] * 1000); }
-                }
-                if (points.length < 2) return;
+                const polyUrl = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/${mult}/${timespan}/${from}/${to}?adjusted=true&sort=asc&limit=500&apiKey=${POLYGON_KEY}`;
+                const json = await fetch(polyUrl).then(r => r.json());
+                const results = json.results || [];
+                if (results.length < 2) return;
+                const points = results.map(r => r.c);
+                const timestamps = results.map(r => r.t);
                 _spkCache[cacheKey] = { points, timestamps };
                 _renderSparkline(ticker, points, timestamps, range);
             } catch (err) {

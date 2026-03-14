@@ -615,51 +615,23 @@
             const stock = deck[deck.length - 1];
             if (!stock || stock.priceLoaded) return;
             stock.priceLoaded = true;
-            fetchWithFallback('https://query1.finance.yahoo.com/v8/finance/chart/' + stock.ticker + '?interval=1d&range=1d&_=' + Date.now())
+            fetch('https://finnhub.io/api/v1/quote?symbol=' + stock.ticker + '&token=' + FINNHUB_KEY)
+                .then(r => r.json())
                 .then(data => {
-                    const meta = data?.chart?.result?.[0]?.meta;
-                    if (meta) {
-                        const c = meta.regularMarketPrice;
-                        const o = meta.chartPreviousClose;
-                        const h = meta.regularMarketDayHigh || c;
-                        const l = meta.regularMarketDayLow || c;
-                        const changePct = ((c - o) / o * 100).toFixed(2);
-                        stock.price = '$' + c.toFixed(2);
-                        stock.change = (changePct >= 0 ? '+' : '') + changePct + '%';
-                        stock.color = changePct >= 0 ? 'green' : 'red';
-                        stock.pe = meta.trailingPE ? meta.trailingPE.toFixed(2) : null;
-                        stock.marketCap = meta.marketCap ? '$' + (meta.marketCap / 1e9).toFixed(1) + 'B' : null;
-                        stock.week52High = meta.fiftyTwoWeekHigh ? meta.fiftyTwoWeekHigh.toFixed(2) : null;
-                        stock.week52Low = meta.fiftyTwoWeekLow ? meta.fiftyTwoWeekLow.toFixed(2) : null;
+                    const c = data.c, pc = data.pc;
+                    if (!c) return;
+                    const changePct = ((c - pc) / pc * 100).toFixed(2);
+                    stock.price = '$' + c.toFixed(2);
+                    stock.change = (changePct >= 0 ? '+' : '') + changePct + '%';
+                    stock.color = changePct >= 0 ? 'green' : 'red';
 
-                        const pEl = document.getElementById('price-' + stock.ticker);
-                        const cEl = document.getElementById('change-' + stock.ticker);
-                        if (pEl) pEl.innerHTML = stock.price;
-                        if (cEl) { cEl.innerHTML = stock.change; cEl.className = 'c-change ' + stock.color; }
+                    const pEl = document.getElementById('price-' + stock.ticker);
+                    const cEl = document.getElementById('change-' + stock.ticker);
+                    if (pEl) pEl.innerHTML = stock.price;
+                    if (cEl) { cEl.innerHTML = stock.change; cEl.className = 'c-change ' + stock.color; }
 
-                        const rec = meta.recommendationKey || 'hold';
-                        const recMap = { strongbuy: { cls: 'ab-buy', label: 'Strong Buy' }, buy: { cls: 'ab-buy', label: 'Buy' }, hold: { cls: 'ab-hold', label: 'Hold' }, sell: { cls: 'ab-sell', label: 'Sell' }, strongsell: { cls: 'ab-sell', label: 'Strong Sell' } };
-                        const recInfo = recMap[rec] || recMap['hold'];
-                        stock.analyst = recInfo.label;
-                        stock.analystClass = recInfo.cls;
-                        const badgeEl = document.getElementById('analyst-badge-' + stock.ticker);
-                        if (badgeEl) { badgeEl.innerText = recInfo.label; badgeEl.className = 'analyst-badge ' + recInfo.cls; }
-
-                        const sentimentMap = { strongbuy: 85, buy: 70, hold: 50, sell: 30, strongsell: 15 };
-                        stock.sentiment = sentimentMap[rec] || 50;
-                        const sentFill = document.querySelector(`#card-${deck.length - 1} .sentiment-bar-fill`);
-                        const sentVal = document.querySelector(`#card-${deck.length - 1} .rs-val`);
-                        if (sentFill) { sentFill.style.width = stock.sentiment + '%'; sentFill.style.background = stock.sentiment > 50 ? '#00C853' : '#E53935'; }
-                        if (sentVal) sentVal.innerText = stock.sentiment + '% Bullish';
-
-                        // Default collapsed chart tab is 1D
-                        loadSparkline(stock.ticker, '1D', stock.price, stock.change, stock.color);
-                    } else {
-                        return;
-                    }
-                }).catch(() => {
-                    return;
-                });
+                    loadSparkline(stock.ticker, '1D', stock.price, stock.change, stock.color);
+                }).catch(() => {});
         }
 
         async function fetchSavedStockPrices() {
