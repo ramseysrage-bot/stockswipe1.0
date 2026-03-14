@@ -1353,7 +1353,13 @@
         let _alphaTaglineTimer = null;
         let _alphaCurrentTagline = 0;
 
+        let _preAlphaActiveTab = null;
+
         function openAlphaScreen() {
+            const activeNavBtn = document.querySelector('.nav-item.active');
+            _preAlphaActiveTab = activeNavBtn ? activeNavBtn.id : null;
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('nav-btn-alpha').classList.add('active');
             const ts   = document.getElementById('alpha-transition-screen');
             const sym  = document.getElementById('alpha-transition-symbol');
             const left = document.getElementById('alpha-transition-left');
@@ -1433,10 +1439,15 @@
                 }));
             }, 200);
 
-            // Teardown
+            // Teardown + restore previous active tab
             setTimeout(() => {
                 ts.style.display  = 'none';
                 scr.style.display = 'none';
+                document.getElementById('nav-btn-alpha').classList.remove('active');
+                if (_preAlphaActiveTab) {
+                    const prev = document.getElementById(_preAlphaActiveTab);
+                    if (prev) prev.classList.add('active');
+                }
             }, 950);
         }
 

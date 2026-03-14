@@ -587,9 +587,6 @@
         <div class="content">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
                 <span class="logo" style="margin-bottom:0;">StockSwype</span>
-                <button class="alpha-badge" onclick="openAlphaScreen()" aria-label="Open Alpha features">
-                    <span class="alpha-badge-char">α</span>
-                </button>
             </div>
             <div class="headline">Stocks worth<br><strong>discovering.</strong></div>
             <div class="sub">Swipe through stocks matched to your interests. No noise — just what's worth knowing.</div>
@@ -919,13 +916,8 @@
     <!-- Feed Screen -->
     <div id="feed" class="feed-screen">
         <div class="nav-bar">
-            <div style="display:flex;align-items:center;gap:8px;">
-                <div class="nav-logo">StockSwype</div>
-                <button class="alpha-badge" onclick="openAlphaScreen()" aria-label="Open Alpha features">
-                    <span class="alpha-badge-char">α</span>
-                </button>
-            </div>
-            <div class="nav-pill" id="feed-count">7 left</div>
+            <div class="nav-logo">StockSwype</div>
+            <div class="nav-pill" id="feed-count" style="position:absolute;left:50%;transform:translateX(-50%);">7 left</div>
             <div class="nav-saved" onclick="showWatchlist()">Saved <div class="saved-count" id="saved-count">0</div>
             </div>
         </div>
@@ -1293,6 +1285,10 @@
                 </svg>
             </div>
             Profile
+        </div>
+        <div class="nav-item" id="nav-btn-alpha" onclick="openAlphaScreen()">
+            <div class="nav-icon">α</div>
+            Alpha
         </div>
     </div>
 
