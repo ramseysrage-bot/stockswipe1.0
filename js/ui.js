@@ -1420,13 +1420,40 @@
             if (_alphaTaglineTimer) { clearInterval(_alphaTaglineTimer); _alphaTaglineTimer = null; }
         }
 
-        function alphaNotifyMe() {
+        async function alphaNotifyMe() {
             const btn = document.getElementById('alpha-cta-btn');
-            if (!btn) return;
-            btn.textContent  = "You're on the list. We'll let you know.";
-            btn.style.fontSize = '13px';
+            if (!btn || btn.disabled) return;
+
+            // Require a logged-in (non-guest) user so we have a real email
+            if (!currentUser || isGuest) {
+                btn.textContent = 'Sign in to join the waitlist.';
+                btn.style.fontSize = '13px';
+                setTimeout(() => {
+                    btn.textContent = 'Notify Me When Alpha Launches';
+                    btn.style.fontSize = '16px';
+                }, 3000);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Joining…';
+
+            const { error } = await supabaseClient
+                .from('waitlist')
+                .upsert({ email: currentUser.email }, { onConflict: 'email', ignoreDuplicates: true });
+
+            if (error) {
+                btn.textContent = 'Something went wrong. Try again.';
+                btn.style.fontSize = '13px';
+                btn.disabled = false;
+            } else {
+                btn.textContent = "You're on the list. We'll let you know.";
+                btn.style.fontSize = '13px';
+            }
+
             setTimeout(() => {
-                btn.textContent  = 'Notify Me When Alpha Launches';
+                btn.textContent = 'Notify Me When Alpha Launches';
                 btn.style.fontSize = '16px';
+                btn.disabled = false;
             }, 3000);
         }
