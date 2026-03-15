@@ -103,7 +103,13 @@
                                         <div style="font-family:'DM Sans',sans-serif;font-weight:600;font-size:15px;color:#0a0a0a;">@${uname}</div>
                                         ${avgHtml}
                                     </div>
-                                    <button onclick="removeFriend('${f.id}')" style="background:none;border:none;font-family:'DM Sans',sans-serif;font-size:12px;color:#ccc;cursor:pointer;">Remove</button>
+                                    <div style="position:relative;">
+                                        <button onclick="toggleFriendMenu('fmenu-${f.id}', event)" data-menu-toggle style="background:none;border:none;font-size:20px;color:#bbb;cursor:pointer;padding:2px 8px;line-height:1;font-family:'DM Sans',sans-serif;">⋮</button>
+                                        <div id="fmenu-${f.id}" class="friend-action-menu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.14);border:1px solid #f0f0f0;z-index:200;min-width:176px;overflow:hidden;">
+                                            <div onclick="reportFriend('${f.id}', '${uname}')" style="padding:13px 16px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;color:#E53935;cursor:pointer;border-bottom:1px solid #f4f4f5;-webkit-tap-highlight-color:transparent;">Report @${uname}</div>
+                                            <div onclick="removeFriend('${f.id}')" style="padding:13px 16px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;color:#0a0a0a;cursor:pointer;-webkit-tap-highlight-color:transparent;">Remove @${uname}</div>
+                                        </div>
+                                    </div>
                                 </div>
                                 ${tickerList.length > 0 ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">${tickerPills}</div>` : `<div style="font-family:'DM Sans',sans-serif;font-size:12px;color:#bbb;">No saved stocks yet</div>`}
                             </div>`;
@@ -332,6 +338,35 @@
                 bodyEl.innerHTML = `<div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#bbb;padding:24px;text-align:center;">Could not load history.</div>`;
             }
         }
+
+        function toggleFriendMenu(menuId, event) {
+            event.stopPropagation();
+            document.querySelectorAll('.friend-action-menu').forEach(m => {
+                if (m.id !== menuId) m.style.display = 'none';
+            });
+            const menu = document.getElementById(menuId);
+            if (!menu) return;
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function reportFriend(friendshipId, uname) {
+            document.querySelectorAll('.friend-action-menu').forEach(m => m.style.display = 'none');
+            if (confirm(`Are you sure you want to report @${uname}?\n\nThis will also remove them from your friends.`)) {
+                const reporter = window._username || currentUser?.email || 'unknown';
+                fetch('https://rzvrdvvzxgwccldqnxbm.supabase.co/functions/v1/report-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reporter, reported: uname })
+                }).catch(() => {});
+                removeFriend(friendshipId);
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('[data-menu-toggle]') && !e.target.closest('.friend-action-menu')) {
+                document.querySelectorAll('.friend-action-menu').forEach(m => m.style.display = 'none');
+            }
+        });
 
         async function removeFriend(friendshipId) {
             try {
