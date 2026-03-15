@@ -1392,7 +1392,7 @@
             symEl.style.opacity   = '0';
             symEl.style.transform = 'translateY(20px)';
             symEl.offsetHeight; // trigger reflow
-            symEl.style.animation = 'alphaEntrance 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+            symEl.style.animation = 'alphaEntrance 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards, alphaShimmer 3s ease-in-out infinite';
         }
 
         function stopAlphaCrossfade() {
