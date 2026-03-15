@@ -3723,15 +3723,21 @@
             position: fixed;
             inset: 0;
             z-index: 800;
-            background: #fff;
+            background-color: #0A0A0A;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+            background-size: 200px 200px;
             display: none;
             flex-direction: column;
             overflow-y: auto;
+            overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
+        #alpha-screen::-webkit-scrollbar { display: none; }
         #alpha-screen.active { opacity: 1; }
+
         .alpha-close-btn {
             position: absolute;
             top: 54px;
@@ -3739,83 +3745,90 @@
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            background: #f4f4f5;
-            border: none;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             z-index: 10;
-            font-size: 17px;
-            color: #0a0a0a;
+            font-size: 16px;
+            color: rgba(255,255,255,0.55);
             line-height: 1;
-            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), background 0.15s;
+            transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .alpha-close-btn:active { transform: scale(0.88); background: #e8e8e8; }
+        .alpha-close-btn:active { background: rgba(255,255,255,0.16); transform: scale(0.9); }
+
         .alpha-screen-inner {
-            padding: 0 24px 56px;
+            padding: 0 24px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .alpha-header {
+            padding-top: 72px;
+            text-align: center;
+            margin-bottom: 28px;
+            width: 100%;
+            position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        .alpha-header {
-            padding-top: 60px;
-            text-align: center;
-            margin-bottom: 28px;
-            width: 100%;
-        }
-        .alpha-logo-wordmark {
-            display: none;
-        }
-        .alpha-word-container {
-            position: relative;
-            height: 70px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .alpha-word {
+        .alpha-hero-glow {
             position: absolute;
-            font-family: 'Orbitron', Georgia, serif;
-            font-size: 48px;
-            font-weight: 700;
-            color: #0a0a0a;
-            text-shadow: 1px 1px 0 #000, -1px -1px 0 rgba(0,0,0,0.15);
-            transition: opacity 0.8s ease-in-out;
-            opacity: 1;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,255,136,0.18) 0%, rgba(0,255,136,0.05) 45%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
         }
+        .alpha-logo-wordmark { display: none; }
+
         .alpha-symbol-big {
-            position: absolute;
-            font-family: 'Orbitron', Georgia, serif;
-            font-size: 56px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Cinzel', Georgia, serif;
+            font-size: 96px;
             font-weight: 700;
-            color: #0a0a0a;
-            text-shadow: 1px 1px 0 #000, 0 0 22px rgba(0,200,83,0.6), 0 0 44px rgba(0,200,83,0.25);
-            transition: opacity 0.8s ease-in-out;
+            color: #ffffff;
+            text-shadow: 1px 1px 0 rgba(0,0,0,0.9), 0 0 22px rgba(0,255,136,0.4), 0 0 48px rgba(0,255,136,0.15);
+            display: block;
+            line-height: 1;
             opacity: 0;
+            transform: translateY(20px);
         }
+
         .alpha-price-block {
             text-align: center;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
         .alpha-price-amount {
             font-family: 'Orbitron', 'DM Mono', monospace;
             font-size: 38px;
-            font-weight: 500;
-            color: #0a0a0a;
+            font-weight: 700;
+            color: #ffffff;
             line-height: 1.1;
         }
         .alpha-price-period {
             font-family: 'DM Sans', sans-serif;
             font-size: 14px;
-            color: #aaa;
+            color: #888;
             margin-top: 4px;
         }
+
         .alpha-tagline-wrap {
             height: 20px;
             position: relative;
             overflow: hidden;
-            margin-bottom: 36px;
+            margin-bottom: 32px;
             width: 100%;
             text-align: center;
         }
@@ -3825,36 +3838,53 @@
             font-family: 'DM Sans', sans-serif;
             font-style: italic;
             font-size: 12px;
-            color: #aaa;
-            transition: opacity 0.4s ease, transform 0.4s ease;
+            color: #00FF88;
+            transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             opacity: 0;
             transform: translateY(6px);
         }
         .alpha-tagline.visible { opacity: 1; transform: translateY(0); }
+
         .alpha-divider {
             width: 100%;
             height: 1px;
-            background: #f0f0f0;
-            margin-bottom: 8px;
+            background: #222;
+            margin-bottom: 16px;
         }
+
         .alpha-features {
             width: 100%;
             display: flex;
             flex-direction: column;
-            margin-bottom: 36px;
+            gap: 8px;
+            margin-bottom: 0;
         }
         .alpha-feature-row {
             display: flex;
             align-items: flex-start;
             gap: 14px;
-            padding: 16px 0;
-            border-bottom: 1px solid #f4f4f5;
+            padding: 18px 16px;
+            background: #0f0f0f;
+            border: 1px solid #1a1a1a;
+            border-left: 2px solid #00FF88;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 12px rgba(0,0,0,0.4);
+            opacity: 0;
+            transform: translateY(10px);
+            animation: featureRowIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        .alpha-feature-row:last-child { border-bottom: none; }
+        .alpha-feature-row:nth-child(1) { animation-delay: 0.25s; }
+        .alpha-feature-row:nth-child(2) { animation-delay: 0.31s; }
+        .alpha-feature-row:nth-child(3) { animation-delay: 0.37s; }
+        .alpha-feature-row:nth-child(4) { animation-delay: 0.43s; }
+        .alpha-feature-row:nth-child(5) { animation-delay: 0.49s; }
+        .alpha-feature-row:nth-child(6) { animation-delay: 0.55s; }
+        .alpha-feature-row:nth-child(7) { animation-delay: 0.61s; }
+
         .alpha-feature-icon {
-            font-family: Georgia, 'Times New Roman', serif;
+            font-family: 'Cinzel', Georgia, serif;
             font-size: 14px;
-            color: #00C853;
+            color: #00FF88;
+            text-shadow: 0 0 8px rgba(0,255,136,0.5);
             margin-top: 1px;
             flex-shrink: 0;
             width: 18px;
@@ -3864,29 +3894,60 @@
         .alpha-feature-title {
             font-family: 'DM Sans', sans-serif;
             font-size: 14px;
-            font-weight: 700;
-            color: #0a0a0a;
-            margin-bottom: 3px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 4px;
         }
         .alpha-feature-desc {
             font-family: 'DM Sans', sans-serif;
             font-size: 13px;
-            color: #888;
+            color: #999;
             line-height: 1.55;
+        }
+        .alpha-coming-soon {
+            display: inline-block;
+            background: #0D2B1A;
+            color: #00FF88;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            vertical-align: middle;
+            margin-left: 6px;
+            letter-spacing: 0.3px;
+        }
+
+        .alpha-cta-wrap {
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            padding: 20px 0 40px;
+            background: linear-gradient(to bottom, transparent, #0A0A0A 30%);
+            z-index: 5;
         }
         .alpha-cta-btn {
             width: 100%;
-            background: #fff;
-            color: #00C853;
-            border: 2px solid #00C853;
+            background: #00C853;
+            color: #ffffff;
+            border: none;
             padding: 18px;
-            border-radius: 100px;
-            font-family: 'DM Sans', sans-serif;
-            font-weight: 700;
-            font-size: 16px;
+            border-radius: 12px;
+            font-family: 'Cinzel', 'DM Sans', sans-serif;
+            font-weight: 600;
+            font-size: 15px;
             cursor: pointer;
-            box-shadow: 0 0 12px rgba(0,200,83,0.4), 0 0 24px rgba(0,200,83,0.2);
-            transition: transform 0.12s, font-size 0.15s ease;
+            box-shadow: 0 2px 12px rgba(0,200,83,0.35);
+            transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.12s cubic-bezier(0.16, 1, 0.3, 1), font-size 0.15s ease;
             text-align: center;
+            letter-spacing: 0.5px;
         }
-        .alpha-cta-btn:active { transform: scale(0.97); }
+        .alpha-cta-btn:active { transform: scale(0.97); box-shadow: 0 0 20px rgba(0,200,83,0.5); }
+
+        @keyframes alphaEntrance {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes featureRowIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }

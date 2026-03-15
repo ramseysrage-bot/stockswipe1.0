@@ -19,7 +19,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>StockSwype</title>
     <link
-        href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;900&display=swap"
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;900&family=Cinzel:wght@400;600;700&display=swap"
         rel="stylesheet">
     <!-- Chart.js for expanded interactive price charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
@@ -1527,11 +1527,8 @@
         <button class="alpha-close-btn" onclick="closeAlphaScreen()">✕</button>
         <div class="alpha-screen-inner">
             <div class="alpha-header">
-                <span class="alpha-logo-wordmark">StockSwype</span>
-                <div class="alpha-word-container">
-                    <span class="alpha-word" id="alpha-word-text">Alpha</span>
-                    <span class="alpha-symbol-big" id="alpha-symbol-text">α</span>
-                </div>
+                <div class="alpha-hero-glow"></div>
+                <span class="alpha-symbol-big" id="alpha-symbol-text">α</span>
             </div>
             <div class="alpha-price-block">
                 <div class="alpha-price-amount">$6.49</div>
@@ -1570,7 +1567,7 @@
                 <div class="alpha-feature-row">
                     <div class="alpha-feature-icon">α</div>
                     <div class="alpha-feature-text">
-                        <div class="alpha-feature-title">League Pass <span style="font-size:11px;color:#aaa;font-weight:500;">(Coming Soon)</span></div>
+                        <div class="alpha-feature-title">League Pass <span class="alpha-coming-soon">Coming Soon</span></div>
                         <div class="alpha-feature-desc">Alpha members get unlimited Leagues and multiple entries. Free users are limited to 1 league with 3 friends.</div>
                     </div>
                 </div>
@@ -1596,7 +1593,9 @@
                     </div>
                 </div>
             </div>
-            <button class="alpha-cta-btn" id="alpha-cta-btn" onclick="alphaNotifyMe()">Notify Me When Alpha Launches</button>
+            <div class="alpha-cta-wrap">
+                <button class="alpha-cta-btn" id="alpha-cta-btn" onclick="alphaNotifyMe()">Notify Me When Alpha Launches</button>
+            </div>
         </div>
     </div>
 

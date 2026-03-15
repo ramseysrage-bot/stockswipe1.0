@@ -1356,22 +1356,24 @@
         }
 
         function startAlphaCrossfade() {
-            const wordEl = document.getElementById('alpha-word-text');
-            const symEl  = document.getElementById('alpha-symbol-text');
-            if (!wordEl || !symEl) return;
-            // One-way permanent dissolve: Alpha → α (~800ms, stays as α)
-            _alphaCrossfadeTimer = setTimeout(() => {
-                wordEl.style.opacity = '0';
-                symEl.style.opacity  = '1';
-            }, 600);
+            const symEl = document.getElementById('alpha-symbol-text');
+            if (!symEl) return;
+            // Reset, force reflow, then play entrance animation
+            symEl.style.animation = 'none';
+            symEl.style.opacity   = '0';
+            symEl.style.transform = 'translateY(20px)';
+            symEl.offsetHeight; // trigger reflow
+            symEl.style.animation = 'alphaEntrance 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards';
         }
 
         function stopAlphaCrossfade() {
             if (_alphaCrossfadeTimer) { clearTimeout(_alphaCrossfadeTimer); _alphaCrossfadeTimer = null; }
-            const wordEl = document.getElementById('alpha-word-text');
-            const symEl  = document.getElementById('alpha-symbol-text');
-            if (wordEl) wordEl.style.opacity = '1';
-            if (symEl)  symEl.style.opacity  = '0';
+            const symEl = document.getElementById('alpha-symbol-text');
+            if (symEl) {
+                symEl.style.animation = 'none';
+                symEl.style.opacity   = '0';
+                symEl.style.transform = 'translateY(20px)';
+            }
         }
 
         function startAlphaTaglineRotation() {
