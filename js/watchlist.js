@@ -825,6 +825,7 @@
                             Send to a Friend
                         </button>
                         <button class="ws-trade-btn" onclick="tradeOnWealthsimple('${stock.ticker}', event)" style="margin-top:8px;margin-bottom:8px;">Trade on Wealthsimple</button>
+                        <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#999;text-align:center;margin-top:6px;pointer-events:none;">Availability may vary based on equity.</div>
                         </div> <!-- /expanded-only -->
                     </div>
                 </div>`;

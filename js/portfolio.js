@@ -310,6 +310,7 @@
         }
 
         function _pfRenderResults(tickers, data) {
+            let _pfScrubAnchor = null;
             // Reset save button
             const saveWrap = document.getElementById('pf-save-btn-wrap');
             if (saveWrap) {
@@ -407,6 +408,7 @@
                                 <span id="pf-hover-bench" style="font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:#888;"></span>
                             </span>
                         </div>
+                        <div id="pf-hover-delta" style="font-family:'DM Mono',monospace;font-size:11px;text-align:right;margin-top:2px;min-height:14px;"></div>
                     </div>
                 </div>
                 <div style="background:#f8f8f8;border-radius:16px;padding:16px;position:relative;">
@@ -557,21 +559,31 @@
                             },
                             plugins: {
                                 legend: { display: false },
-                                tooltip: { enabled: false },
-                            },
-                            onHover: (event, elements, chart) => {
-                                if (!elements || elements.length === 0) return;
-                                const idx = elements[0].index;
-                                const pfVal = data.portfolioCurve[idx];
-                                const bchVal = data.spCurve[idx];
-                                const pfRet = pfVal.toFixed(1);
-                                const bchRet = bchVal.toFixed(1);
-                                const labelEl = document.getElementById('pf-hover-label');
-                                const pfEl = document.getElementById('pf-hover-portfolio');
-                                const bchEl = document.getElementById('pf-hover-bench');
-                                if (labelEl) labelEl.textContent = MONTHS[new Date(data.dates[idx]).getUTCMonth()];
-                                if (pfEl) pfEl.textContent = (pfRet >= 0 ? '+' : '') + pfRet + '%';
-                                if (bchEl) bchEl.textContent = (bchRet >= 0 ? '+' : '') + bchRet + '%';
+                                tooltip: {
+                                    enabled: false,
+                                    external: (context) => {
+                                        const { tooltip } = context;
+                                        if (!tooltip || tooltip.opacity === 0) return;
+                                        const idx = tooltip.dataPoints?.[0]?.dataIndex;
+                                        if (idx == null) return;
+                                        const pfVal = data.portfolioCurve[idx];
+                                        const spVal = data.spCurve[idx];
+                                        if (_pfScrubAnchor === null) _pfScrubAnchor = { pfVal, spVal };
+                                        const dPf = pfVal - _pfScrubAnchor.pfVal;
+                                        const dPfPct = _pfScrubAnchor.pfVal !== 0 ? (dPf / Math.abs(_pfScrubAnchor.pfVal) * 100) : 0;
+                                        const labelEl = document.getElementById('pf-hover-label');
+                                        const pfEl = document.getElementById('pf-hover-portfolio');
+                                        const bchEl = document.getElementById('pf-hover-bench');
+                                        const deltaEl = document.getElementById('pf-hover-delta');
+                                        if (labelEl) labelEl.textContent = MONTHS[new Date(data.dates[idx]).getUTCMonth()];
+                                        if (pfEl) pfEl.textContent = (pfVal >= 0 ? '+' : '') + pfVal.toFixed(1) + '%';
+                                        if (bchEl) bchEl.textContent = (spVal >= 0 ? '+' : '') + spVal.toFixed(1) + '%';
+                                        if (deltaEl) {
+                                            deltaEl.textContent = (dPf >= 0 ? '+' : '') + dPf.toFixed(1) + ' pp (' + (dPfPct >= 0 ? '+' : '') + dPfPct.toFixed(1) + '%)';
+                                            deltaEl.style.color = dPf >= 0 ? '#00C853' : '#E53935';
+                                        }
+                                    }
+                                },
                             },
                             scales: {
                                 x: {
@@ -586,7 +598,32 @@
                                     }
                                 }
                             }
-                        }
+                        },
+                        plugins: [{
+                            id: 'pfResultsScrub',
+                            beforeEvent(chart, args) {
+                                if (args.event.type === 'mousedown' || args.event.type === 'touchstart') {
+                                    _pfScrubAnchor = null;
+                                }
+                            },
+                            afterEvent(chart, args) {
+                                const e = args.event;
+                                if (e.type === 'mouseout' || e.type === 'touchend') {
+                                    _pfScrubAnchor = null;
+                                    const lastIdx = data.dates.length - 1;
+                                    const defPf = data.portfolioCurve[lastIdx];
+                                    const defSp = data.spCurve[lastIdx];
+                                    const labelEl = document.getElementById('pf-hover-label');
+                                    const pfEl = document.getElementById('pf-hover-portfolio');
+                                    const bchEl = document.getElementById('pf-hover-bench');
+                                    const deltaEl = document.getElementById('pf-hover-delta');
+                                    if (labelEl) labelEl.textContent = MONTHS[new Date(data.dates[lastIdx]).getUTCMonth()];
+                                    if (pfEl) pfEl.textContent = (defPf >= 0 ? '+' : '') + defPf.toFixed(1) + '%';
+                                    if (bchEl) bchEl.textContent = (defSp >= 0 ? '+' : '') + defSp.toFixed(1) + '%';
+                                    if (deltaEl) { deltaEl.textContent = ''; }
+                                }
+                            }
+                        }]
                     });
 
                     // Set default hover readout to last data point
@@ -835,9 +872,14 @@
                 tradeBtn.style.marginTop = '12px';
                 tradeBtn.onclick = (e) => { e.stopPropagation(); tradeOnWealthsimple(null, e); };
 
+                const tradeDisclaimer = document.createElement('div');
+                tradeDisclaimer.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:11px;color:#999;text-align:center;margin-top:6px;pointer-events:none;';
+                tradeDisclaimer.textContent = 'Availability may vary based on equity.';
+
                 item.appendChild(headerRow);
                 item.appendChild(metricsDiv);
                 item.appendChild(tradeBtn);
+                item.appendChild(tradeDisclaimer);
                 list.appendChild(item);
             });
         }
@@ -1031,9 +1073,13 @@
             lineWrap.innerHTML = `
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                     <div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#0a0a0a;">Cumulative Return</div>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#00C853;display:inline-block;"></span><span style="font-family:'DM Mono',monospace;font-size:11px;color:#00C853;font-weight:700;">Portfolio</span></span>
-                        <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#aaa;display:inline-block;"></span><span style="font-family:'DM Mono',monospace;font-size:11px;color:#888;font-weight:600;">S&P 500</span></span>
+                    <div id="pf-sd-chart-hover" style="text-align:right;">
+                        <div id="pf-sd-hover-label" style="font-family:'DM Mono',monospace;font-size:11px;color:#aaa;"></div>
+                        <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:2px;">
+                            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#00C853;display:inline-block;"></span><span id="pf-sd-hover-portfolio" style="font-family:'DM Mono',monospace;font-size:12px;color:#00C853;font-weight:700;"></span></span>
+                            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#aaa;display:inline-block;"></span><span id="pf-sd-hover-bench" style="font-family:'DM Mono',monospace;font-size:12px;color:#888;font-weight:600;"></span></span>
+                        </div>
+                        <div id="pf-sd-hover-delta" style="font-family:'DM Mono',monospace;font-size:11px;text-align:right;margin-top:2px;min-height:14px;"></div>
                     </div>
                 </div>
                 ${hasCurve ? '<div style="background:#f8f8f8;border-radius:16px;padding:16px;"><canvas id="pf-sd-line-canvas" height="180"></canvas></div>' : '<div style="background:#f8f8f8;border-radius:16px;padding:24px;text-align:center;font-family:\'DM Sans\',sans-serif;font-size:13px;color:#aaa;">No chart data available</div>'}`;
@@ -1093,17 +1139,85 @@
                 if (hasCurve) {
                     const lineCtx = document.getElementById('pf-sd-line-canvas');
                     if (lineCtx) {
+                        let _pfSdScrubAnchor = null;
+                        const sdLastIdx = portfolioCurve.length - 1;
                         _pfSDLineChart = new Chart(lineCtx, {
                             type: 'line',
                             data: {
                                 labels: chartLabels,
                                 datasets: [
-                                    { label: 'Portfolio', data: portfolioCurve, borderColor: chartLineColor, backgroundColor: chartFillColor, borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
-                                    { label: 'S&P 500', data: spCurve, borderColor: '#aaa', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, borderDash: [4, 4], tension: 0.4 }
+                                    { label: 'Portfolio', data: portfolioCurve, borderColor: chartLineColor, backgroundColor: chartFillColor, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: chartLineColor, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, fill: true, tension: 0.4 },
+                                    { label: 'S&P 500', data: spCurve, borderColor: '#aaa', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#aaa', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, borderDash: [4, 4], tension: 0.4 }
                                 ]
                             },
-                            options: { responsive: true, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { enabled: true } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa' } }, y: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa', callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%' } } } }
+                            options: {
+                                responsive: true,
+                                interaction: { mode: 'index', intersect: false },
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        enabled: false,
+                                        external: (context) => {
+                                            const { tooltip } = context;
+                                            if (!tooltip || tooltip.opacity === 0) return;
+                                            const idx = tooltip.dataPoints?.[0]?.dataIndex;
+                                            if (idx == null) return;
+                                            const pfVal = portfolioCurve[idx];
+                                            const spVal = spCurve[idx];
+                                            if (_pfSdScrubAnchor === null) _pfSdScrubAnchor = { pfVal, spVal };
+                                            const dPf = pfVal - _pfSdScrubAnchor.pfVal;
+                                            const dPfPct = _pfSdScrubAnchor.pfVal !== 0 ? (dPf / Math.abs(_pfSdScrubAnchor.pfVal) * 100) : 0;
+                                            const labelEl = document.getElementById('pf-sd-hover-label');
+                                            const pfEl = document.getElementById('pf-sd-hover-portfolio');
+                                            const bchEl = document.getElementById('pf-sd-hover-bench');
+                                            const deltaEl = document.getElementById('pf-sd-hover-delta');
+                                            if (labelEl) labelEl.textContent = MONTHS[new Date(pf.chartDates[idx]).getUTCMonth()];
+                                            if (pfEl) pfEl.textContent = (pfVal >= 0 ? '+' : '') + pfVal.toFixed(1) + '%';
+                                            if (bchEl) bchEl.textContent = (spVal >= 0 ? '+' : '') + spVal.toFixed(1) + '%';
+                                            if (deltaEl) {
+                                                deltaEl.textContent = (dPf >= 0 ? '+' : '') + dPf.toFixed(1) + ' pp (' + (dPfPct >= 0 ? '+' : '') + dPfPct.toFixed(1) + '%)';
+                                                deltaEl.style.color = dPf >= 0 ? '#00C853' : '#E53935';
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: { grid: { display: false }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa' } },
+                                    y: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#aaa', callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%' } }
+                                }
+                            },
+                            plugins: [{
+                                id: 'pfSdScrub',
+                                beforeEvent(chart, args) {
+                                    if (args.event.type === 'mousedown' || args.event.type === 'touchstart') {
+                                        _pfSdScrubAnchor = null;
+                                    }
+                                },
+                                afterEvent(chart, args) {
+                                    const e = args.event;
+                                    if (e.type === 'mouseout' || e.type === 'touchend') {
+                                        _pfSdScrubAnchor = null;
+                                        const defPf = portfolioCurve[sdLastIdx];
+                                        const defSp = spCurve[sdLastIdx];
+                                        const labelEl = document.getElementById('pf-sd-hover-label');
+                                        const pfEl = document.getElementById('pf-sd-hover-portfolio');
+                                        const bchEl = document.getElementById('pf-sd-hover-bench');
+                                        const deltaEl = document.getElementById('pf-sd-hover-delta');
+                                        if (labelEl) labelEl.textContent = MONTHS[new Date(pf.chartDates[sdLastIdx]).getUTCMonth()];
+                                        if (pfEl) pfEl.textContent = (defPf >= 0 ? '+' : '') + defPf.toFixed(1) + '%';
+                                        if (bchEl) bchEl.textContent = (defSp >= 0 ? '+' : '') + defSp.toFixed(1) + '%';
+                                        if (deltaEl) { deltaEl.textContent = ''; }
+                                    }
+                                }
+                            }]
                         });
+                        // Set default readout to last data point
+                        const labelEl = document.getElementById('pf-sd-hover-label');
+                        const pfEl = document.getElementById('pf-sd-hover-portfolio');
+                        const bchEl = document.getElementById('pf-sd-hover-bench');
+                        if (labelEl) labelEl.textContent = MONTHS[new Date(pf.chartDates[sdLastIdx]).getUTCMonth()];
+                        if (pfEl) pfEl.textContent = (portfolioCurve[sdLastIdx] >= 0 ? '+' : '') + portfolioCurve[sdLastIdx].toFixed(1) + '%';
+                        if (bchEl) bchEl.textContent = (spCurve[sdLastIdx] >= 0 ? '+' : '') + spCurve[sdLastIdx].toFixed(1) + '%';
                     }
                 }
                 const pieCtx = document.getElementById('pf-sd-pie-canvas');
