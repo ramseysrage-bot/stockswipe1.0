@@ -3870,15 +3870,10 @@
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 12px rgba(0,0,0,0.4);
             opacity: 0;
             transform: translateY(10px);
+        }
+        .alpha-feature-row.alpha-row-visible {
             animation: featureRowIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        .alpha-feature-row:nth-child(1) { animation-delay: 0.25s; }
-        .alpha-feature-row:nth-child(2) { animation-delay: 0.31s; }
-        .alpha-feature-row:nth-child(3) { animation-delay: 0.37s; }
-        .alpha-feature-row:nth-child(4) { animation-delay: 0.43s; }
-        .alpha-feature-row:nth-child(5) { animation-delay: 0.49s; }
-        .alpha-feature-row:nth-child(6) { animation-delay: 0.55s; }
-        .alpha-feature-row:nth-child(7) { animation-delay: 0.61s; }
 
         .alpha-feature-icon {
             font-family: 'Cinzel', Georgia, serif;

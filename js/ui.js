@@ -1323,6 +1323,7 @@
         let _alphaCrossfadeTimer = null;
         let _alphaTaglineTimer = null;
         let _alphaCurrentTagline = 0;
+        let _alphaFeatureObserver = null;
 
         let _preAlphaActiveTab = null;
 
@@ -1337,6 +1338,7 @@
                 scr.classList.add('active');
                 startAlphaCrossfade();
                 startAlphaTaglineRotation();
+                startAlphaFeatureObserver();
             }));
         }
 
@@ -1344,6 +1346,7 @@
             const scr = document.getElementById('alpha-screen');
             stopAlphaCrossfade();
             stopAlphaTaglineRotation();
+            stopAlphaFeatureObserver();
             scr.classList.remove('active');
             setTimeout(() => {
                 scr.style.display = 'none';
@@ -1353,6 +1356,32 @@
                     if (prev) prev.classList.add('active');
                 }
             }, 300);
+        }
+
+        function startAlphaFeatureObserver() {
+            const scr = document.getElementById('alpha-screen');
+            if (!scr) return;
+            const rows = scr.querySelectorAll('.alpha-feature-row');
+            if (!rows.length) return;
+            _alphaFeatureObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('alpha-row-visible');
+                        _alphaFeatureObserver.unobserve(entry.target);
+                    }
+                });
+            }, { root: scr, threshold: 0.15 });
+            rows.forEach(row => _alphaFeatureObserver.observe(row));
+        }
+
+        function stopAlphaFeatureObserver() {
+            if (_alphaFeatureObserver) {
+                _alphaFeatureObserver.disconnect();
+                _alphaFeatureObserver = null;
+            }
+            document.querySelectorAll('#alpha-screen .alpha-feature-row').forEach(row => {
+                row.classList.remove('alpha-row-visible');
+            });
         }
 
         function startAlphaCrossfade() {
