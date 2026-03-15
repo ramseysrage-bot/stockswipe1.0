@@ -1459,3 +1459,24 @@
                 btn.disabled = false;
             }, 3000);
         }
+
+        function tradeOnWealthsimple(ticker, e) {
+            if (e) e.stopPropagation();
+            const referral = 'https://www.wealthsimple.com/invite/BBPNFE';
+            let appLaunched = false;
+
+            function onVisibilityChange() {
+                if (document.hidden) appLaunched = true;
+                document.removeEventListener('visibilitychange', onVisibilityChange);
+            }
+            document.addEventListener('visibilitychange', onVisibilityChange);
+
+            // Try to open the Wealthsimple app
+            window.location.href = 'wealthsimple://';
+
+            // If the app didn't open after 800ms, send to referral signup
+            setTimeout(() => {
+                document.removeEventListener('visibilitychange', onVisibilityChange);
+                if (!appLaunched) window.open(referral, '_blank');
+            }, 800);
+        }

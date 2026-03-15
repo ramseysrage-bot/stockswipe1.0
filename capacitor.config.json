@@ -1,0 +1,6 @@
+{
+  "appId": "com.stockswype.app",
+  "appName": "StockSwype",
+  "webDir": ".",
+  "bundledWebRuntime": false
+}

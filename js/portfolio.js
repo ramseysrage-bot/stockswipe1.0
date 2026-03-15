@@ -820,8 +820,15 @@
                         </div>
                     </div>`;
 
+                const tradeBtn = document.createElement('button');
+                tradeBtn.className = 'ws-trade-btn';
+                tradeBtn.textContent = 'Trade on Wealthsimple';
+                tradeBtn.style.marginTop = '12px';
+                tradeBtn.onclick = (e) => { e.stopPropagation(); tradeOnWealthsimple(null, e); };
+
                 item.appendChild(headerRow);
                 item.appendChild(metricsDiv);
+                item.appendChild(tradeBtn);
                 list.appendChild(item);
             });
         }

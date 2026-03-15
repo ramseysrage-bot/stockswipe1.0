@@ -2214,6 +2214,40 @@
             will-change: transform;
         }
 
+        /* ── Trade on Wealthsimple button ── */
+        .ws-trade-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 13px 0;
+            background: #0A0A0A;
+            color: #fff;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        .ws-trade-btn:active {
+            opacity: 0.8;
+        }
+
+        /* Entry wrapper for watchlist rows + trade button */
+        .wl-stock-entry {
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 12px;
+            margin-bottom: 4px;
+        }
+
+        .wl-stock-entry .wl-item {
+            border-bottom: none;
+        }
+
         /* ── Share Modal ── */
         .share-overlay {
             position: fixed;

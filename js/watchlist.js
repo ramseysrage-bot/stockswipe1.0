@@ -232,26 +232,29 @@
             const bg = stock.color === 'green' ? 'rgba(0,200,83,0.1)' : 'rgba(229,57,53,0.1)';
             const t = stock.ticker;
             return `
-                <div class="wl-row-wrap" data-ticker="${t}">
-                    <div class="wl-remove-btn" onclick="removeFromSaved('${t}')">Remove</div>
-                    <div class="wl-item wl-item-sliding" onclick="openWlDetail('${t}')">
-                        <div class="wl-item-left">
-                            <div style="position:relative;flex-shrink:0;width:44px;height:44px;">
-                                <img id="wl-logo-${t}" class="logo-avatar" src="" alt="${t}" style="display:none;">
-                                <div id="wl-logo-fb-${t}" class="wl-badge" style="color:${color};background:${bg};position:absolute;inset:0;">${t}</div>
+                <div class="wl-stock-entry">
+                    <div class="wl-row-wrap" data-ticker="${t}">
+                        <div class="wl-remove-btn" onclick="removeFromSaved('${t}')">Remove</div>
+                        <div class="wl-item wl-item-sliding" onclick="openWlDetail('${t}')">
+                            <div class="wl-item-left">
+                                <div style="position:relative;flex-shrink:0;width:44px;height:44px;">
+                                    <img id="wl-logo-${t}" class="logo-avatar" src="" alt="${t}" style="display:none;">
+                                    <div id="wl-logo-fb-${t}" class="wl-badge" style="color:${color};background:${bg};position:absolute;inset:0;">${t}</div>
+                                </div>
+                                <div class="wl-names">
+                                    <div class="wl-t">${t}</div>
+                                    <div class="wl-n">${stock.name}</div>
+                                </div>
                             </div>
-                            <div class="wl-names">
-                                <div class="wl-t">${t}</div>
-                                <div class="wl-n">${stock.name}</div>
-                            </div>
+                            ${stock.change && stock.change !== '...' ? `<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:${color};background:${bg};padding:3px 8px;border-radius:8px;white-space:nowrap;margin-right:8px;">${stock.change}</div>` : ''}
+                            <button class="wl-share-btn" onclick="shareStock('${t}', event)" aria-label="Send ${t} to a friend">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                </svg>
+                            </button>
                         </div>
-                        ${stock.change && stock.change !== '...' ? `<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:${color};background:${bg};padding:3px 8px;border-radius:8px;white-space:nowrap;margin-right:8px;">${stock.change}</div>` : ''}
-                        <button class="wl-share-btn" onclick="shareStock('${t}', event)" aria-label="Send ${t} to a friend">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                            </svg>
-                        </button>
                     </div>
+                    <button class="ws-trade-btn" onclick="tradeOnWealthsimple('${t}', event)">Trade on Wealthsimple</button>
                 </div>
             `;
         }
@@ -819,6 +822,12 @@
                                 </div>
                                 <div class="tgt-lbls" id="tgt-lbls-${stock.ticker}">${stock.anStr}</div>
                             </div>
+
+                        <button class="card-share-pill" onclick="shareCardStock('${stock.ticker}', event)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#00C853" stroke="none"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                            Send to a Friend
+                        </button>
+                        <button class="ws-trade-btn" onclick="tradeOnWealthsimple('${stock.ticker}', event)" style="margin-top:8px;margin-bottom:8px;">Trade on Wealthsimple</button>
                         </div> <!-- /expanded-only -->
                     </div>
                 </div>`;
