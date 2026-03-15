@@ -348,7 +348,10 @@
             btn.disabled = true;
 
             if (_emailAuthMode === 'signup') {
-                const { error } = await supabaseClient.auth.signUp({ email, password });
+                const { error } = await supabaseClient.auth.signUp({
+                    email, password,
+                    options: { emailRedirectTo: window.location.origin + window.location.pathname }
+                });
                 if (error) {
                     showToast(error.message);
                 } else {
@@ -408,13 +411,8 @@
                 return;
             }
 
-            // No quiz profile yet — OAuth users pick a username first
-            const isOAuth = currentUser?.app_metadata?.provider !== 'email';
-            if (isOAuth) {
-                showUsernameScreen();
-            } else {
-                showQuiz();
-            }
+            // No quiz profile yet — all new users pick a username first
+            showUsernameScreen();
         }
 
         // Keep for backward compat (called from sign-up path above)
