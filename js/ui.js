@@ -1363,14 +1363,20 @@
             if (!scr) return;
             const rows = scr.querySelectorAll('.alpha-feature-row');
             if (!rows.length) return;
+            // Items visible on open get staggered; items reached by scrolling fire immediately
+            let initialBatchIdx = 0;
+            let settled = false;
+            setTimeout(() => { settled = true; }, 500);
             _alphaFeatureObserver = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
-                        entry.target.classList.add('alpha-row-visible');
-                        _alphaFeatureObserver.unobserve(entry.target);
+                        const el = entry.target;
+                        el.style.animationDelay = settled ? '0ms' : (initialBatchIdx++ * 140) + 'ms';
+                        el.classList.add('alpha-row-visible');
+                        _alphaFeatureObserver.unobserve(el);
                     }
                 });
-            }, { root: scr, threshold: 0.15 });
+            }, { root: scr, threshold: 0.1 });
             rows.forEach(row => _alphaFeatureObserver.observe(row));
         }
 
@@ -1381,6 +1387,7 @@
             }
             document.querySelectorAll('#alpha-screen .alpha-feature-row').forEach(row => {
                 row.classList.remove('alpha-row-visible');
+                row.style.animationDelay = '';
             });
         }
 

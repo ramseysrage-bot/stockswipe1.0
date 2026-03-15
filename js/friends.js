@@ -63,21 +63,17 @@
                         friendData.push({ f, friendId, prof, tickerList: (saved || []).map(s => s.ticker) });
                     }
 
-                    // Batch-fetch prices for all friends' tickers via Finnhub (same source as Swyped feed cards)
+                    // Batch-fetch change % from stock_editorial (same data shown in Swyped feed cards)
                     const allUniqTickers = [...new Set(friendData.flatMap(fd => fd.tickerList))];
-                    let friendPrices = {};
+                    let friendChanges = {};
                     if (allUniqTickers.length > 0) {
-                        const results = await Promise.allSettled(
-                            allUniqTickers.map(t =>
-                                fetch(`https://finnhub.io/api/v1/quote?symbol=${t}&token=${FINNHUB_KEY}`)
-                                    .then(r => r.json())
-                                    .then(data => ({ ticker: t, c: data.c, pc: data.pc }))
-                            )
-                        );
-                        for (const r of results) {
-                            if (r.status === 'fulfilled' && r.value.c && r.value.pc) {
-                                friendPrices[r.value.ticker] = { price: r.value.c, prev: r.value.pc };
-                            }
+                        const { data: editRows } = await supabaseClient
+                            .from('stock_editorial')
+                            .select('ticker, change')
+                            .in('ticker', allUniqTickers);
+                        for (const row of (editRows || [])) {
+                            const pct = parseFloat(row.change);
+                            if (!isNaN(pct)) friendChanges[row.ticker] = pct;
                         }
                     }
 
@@ -88,8 +84,8 @@
                         let avgHtml = '';
                         if (tickerList.length > 0) {
                             const changes = tickerList.map(t => {
-                                const d = friendPrices[t];
-                                return (d && d.price != null && d.prev != null) ? (d.price - d.prev) / d.prev * 100 : null;
+                                const pct = friendChanges[t];
+                                return pct != null ? pct : null;
                             }).filter(v => v !== null);
                             if (changes.length > 0) {
                                 const avg = changes.reduce((a, b) => a + b, 0) / changes.length;

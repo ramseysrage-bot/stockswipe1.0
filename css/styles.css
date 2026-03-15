@@ -1,6 +1,5 @@
         html,
         body {
-            background: #000 !important;
             margin: 0;
             padding: 0;
         }
@@ -21,7 +20,7 @@
         }
 
         html {
-            background: #f4f4f5;
+            background: #fff;
         }
 
         html,
@@ -35,7 +34,6 @@
 
         body {
             padding-top: env(safe-area-inset-top);
-            background: #000;
         }
 
         body {
@@ -48,162 +46,6 @@
             padding: 0;
             overflow-x: hidden;
             -webkit-text-size-adjust: 100%;
-        }
-
-        /* iPhone Shell Overlay */
-        .iphone-frame {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 9999;
-            border: 14px solid #000;
-            border-radius: 54px;
-            box-shadow: inset 0 0 0 6px #fff, inset 0 0 0 7px #e5e5ea;
-        }
-
-        /* Status Bar Container */
-        .status-bar {
-            position: absolute;
-            top: 14px;
-            left: 32px;
-            right: 32px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 15px;
-            font-weight: 600;
-            color: #000;
-            z-index: 10000;
-            letter-spacing: -0.2px;
-        }
-
-        /* Time */
-        .time {
-            width: 54px;
-            text-align: center;
-        }
-
-        /* Dynamic Island */
-        .dynamic-island {
-            position: absolute;
-            top: -3px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 124px;
-            height: 36px;
-            background: #000;
-            border-radius: 20px;
-            z-index: 10000;
-        }
-
-        /* Sensors inside Island */
-        .dynamic-island::before {
-            content: '';
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 10px;
-            height: 10px;
-            background: #111;
-            border-radius: 50%;
-            box-shadow: inset -2px -2px 4px rgba(255, 255, 255, 0.1);
-        }
-
-        .dynamic-island::after {
-            content: '';
-            position: absolute;
-            right: 30px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 10px;
-            height: 10px;
-            background: #111;
-            border-radius: 50%;
-        }
-
-        /* Icons */
-        .status-icons {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            height: 12px;
-        }
-
-        .icon-signal,
-        .icon-wifi,
-        .icon-battery {
-            display: flex;
-            align-items: center;
-        }
-
-        .icon-signal svg {
-            width: 18px;
-            height: 12px;
-        }
-
-        .icon-wifi svg {
-            width: 16px;
-            height: 12px;
-        }
-
-        .icon-battery svg {
-            width: 26px;
-            height: 12px;
-        }
-
-        /* Home Indicator */
-        .home-indicator {
-            position: absolute;
-            bottom: 8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 134px;
-            height: 5px;
-            background: #000;
-            border-radius: 100px;
-            z-index: 10000;
-        }
-
-        /* Side Buttons */
-        .btn-mute {
-            position: absolute;
-            left: -18px;
-            top: 115px;
-            width: 4px;
-            height: 32px;
-            background: #1a1a1a;
-            border-radius: 4px 0 0 4px;
-        }
-
-        .btn-vol-up {
-            position: absolute;
-            left: -18px;
-            top: 175px;
-            width: 4px;
-            height: 62px;
-            background: #1a1a1a;
-            border-radius: 4px 0 0 4px;
-        }
-
-        .btn-vol-down {
-            position: absolute;
-            left: -18px;
-            top: 255px;
-            width: 4px;
-            height: 62px;
-            background: #1a1a1a;
-            border-radius: 4px 0 0 4px;
-        }
-
-        .btn-power {
-            position: absolute;
-            right: -18px;
-            top: 200px;
-            width: 4px;
-            height: 95px;
-            background: #1a1a1a;
-            border-radius: 0 4px 4px 0;
         }
 
         /* Existing Styles */
@@ -3597,11 +3439,6 @@
         /* ── Responsive: mobile-only fixes ── */
         @media (max-width: 768px) {
 
-            /* Hide desktop iPhone frame shell */
-            .iphone-mockup {
-                display: none !important;
-            }
-
             /* Full-screen layout — position:fixed prevents Safari bounce/resize */
             html,
             body {
@@ -3919,7 +3756,7 @@
             transform: translateY(14px);
         }
         .alpha-feature-row.alpha-row-visible {
-            animation: featureRowIn 480ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation: featureRowIn 720ms ease-out forwards;
         }
 
         .alpha-feature-icon {
