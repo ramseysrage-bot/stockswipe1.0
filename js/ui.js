@@ -667,18 +667,21 @@
             if (loadEl) { loadEl.style.display = 'flex'; loadEl.innerText = 'Loading…'; }
             canvasEl.style.display = 'none';
 
-            // Fetch chart data via Polygon (CORS-friendly)
-            const { from, to, mult, timespan } = _polyRange(range);
+            // 1D/1W → Yahoo Finance (free intraday); 1M+ → Polygon daily aggregates
             try {
-                const polyUrl = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/${mult}/${timespan}/${from}/${to}?adjusted=true&sort=asc&limit=500&apiKey=${POLYGON_KEY}`;
-                const json = await fetch(polyUrl).then(r => r.json());
-                const results = json.results || [];
-                if (!results.length) throw new Error('No data');
-
-                const points = results.map(r => ({ t: r.t, y: r.c }));
-
-                if (points.length === 0) throw new Error('Empty series');
-
+                let points;
+                if (_yahooIntraday[range]) {
+                    const { points: closes, timestamps } = await _fetchYahooChart(ticker, range);
+                    points = timestamps.map((t, i) => ({ t, y: closes[i] }));
+                } else {
+                    const { from, to, mult, timespan } = _polyRange(range);
+                    const polyUrl = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/${mult}/${timespan}/${from}/${to}?adjusted=true&sort=asc&limit=500&apiKey=${POLYGON_KEY}`;
+                    const json = await fetch(polyUrl).then(r => r.json());
+                    const results = json.results || [];
+                    if (!results.length) throw new Error('No data');
+                    points = results.map(r => ({ t: r.t, y: r.c }));
+                }
+                if (!points.length) throw new Error('Empty series');
                 _expChartCache[cacheKey] = points;
                 renderChart(points);
             } catch (err) {
@@ -1033,6 +1036,27 @@
             }
         }
 
+        // Yahoo Finance params for intraday ranges (free, no API key needed)
+        const _yahooIntraday = {
+            '1D': { interval: '5m',  range: '1d' },
+            '1W': { interval: '60m', range: '5d' },
+        };
+
+        // Fetch points+timestamps from Yahoo Finance via corsproxy for intraday ranges
+        async function _fetchYahooChart(ticker, range) {
+            const { interval, range: r } = _yahooIntraday[range];
+            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=${interval}&range=${r}`;
+            const json = await fetch('https://corsproxy.io/?' + encodeURIComponent(url)).then(res => res.json());
+            const result = json?.chart?.result?.[0];
+            if (!result) throw new Error('No Yahoo data');
+            const timestamps = (result.timestamp || []).map(t => t * 1000);
+            const closes = result.indicators?.quote?.[0]?.close || [];
+            // Filter out null closes (market closed gaps)
+            const paired = timestamps.map((t, i) => ({ t, y: closes[i] })).filter(p => p.y != null);
+            if (paired.length < 2) throw new Error('Insufficient Yahoo data');
+            return { points: paired.map(p => p.y), timestamps: paired.map(p => p.t) };
+        }
+
         /**
          * Load sparkline data (with cache) then render.
          * Called on card open (loadSparkline) and on tab tap (switchSparkline).
@@ -1044,14 +1068,21 @@
                 _renderSparkline(ticker, points, timestamps, range);
                 return;
             }
-            const { from, to, mult, timespan } = _polyRange(range);
             try {
-                const polyUrl = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/${mult}/${timespan}/${from}/${to}?adjusted=true&sort=asc&limit=500&apiKey=${POLYGON_KEY}`;
-                const json = await fetch(polyUrl).then(r => r.json());
-                const results = json.results || [];
-                if (results.length < 2) return;
-                const points = results.map(r => r.c);
-                const timestamps = results.map(r => r.t);
+                let points, timestamps;
+                if (_yahooIntraday[range]) {
+                    // 1D / 1W — use Yahoo Finance (Polygon free tier blocks intraday)
+                    ({ points, timestamps } = await _fetchYahooChart(ticker, range));
+                } else {
+                    // 1M+ — use Polygon daily aggregates
+                    const { from, to, mult, timespan } = _polyRange(range);
+                    const polyUrl = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/${mult}/${timespan}/${from}/${to}?adjusted=true&sort=asc&limit=500&apiKey=${POLYGON_KEY}`;
+                    const json = await fetch(polyUrl).then(r => r.json());
+                    const results = json.results || [];
+                    if (results.length < 2) return;
+                    points = results.map(r => r.c);
+                    timestamps = results.map(r => r.t);
+                }
                 _spkCache[cacheKey] = { points, timestamps };
                 _renderSparkline(ticker, points, timestamps, range);
             } catch (err) {

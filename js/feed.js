@@ -630,7 +630,7 @@
                     if (pEl) pEl.innerHTML = stock.price;
                     if (cEl) { cEl.innerHTML = stock.change; cEl.className = 'c-change ' + stock.color; }
 
-                    loadSparkline(stock.ticker, '1M', stock.price, stock.change, stock.color);
+                    loadSparkline(stock.ticker, '1D', stock.price, stock.change, stock.color);
                 }).catch(() => {});
         }
 
@@ -715,9 +715,9 @@
                         </div>
                         <!-- Time tabs for collapsed card -->
                         <div class="spk-tab-row collapsed-only" id="spk-tabs-${stock.ticker}">
-                            <div class="spk-tab" onclick="switchSparkline('${stock.ticker}','1D',this)">1D</div>
+                            <div class="spk-tab spk-active" onclick="switchSparkline('${stock.ticker}','1D',this)">1D</div>
                             <div class="spk-tab" onclick="switchSparkline('${stock.ticker}','1W',this)">1W</div>
-                            <div class="spk-tab spk-active" onclick="switchSparkline('${stock.ticker}','1M',this)">1M</div>
+                            <div class="spk-tab" onclick="switchSparkline('${stock.ticker}','1M',this)">1M</div>
                             <div class="spk-tab" onclick="switchSparkline('${stock.ticker}','3M',this)">3M</div>
                             <div class="spk-tab" onclick="switchSparkline('${stock.ticker}','6M',this)">6M</div>
                             <div class="spk-tab" onclick="switchSparkline('${stock.ticker}','1Y',this)">1Y</div>
@@ -729,9 +729,9 @@
                             <div class="exp-chart-loading" id="exp-chart-loading-${stock.ticker}">Loading chart…</div>
                             <canvas id="exp-canvas-${stock.ticker}" height="200" style="width:100%;display:block;"></canvas>
                             <div class="exp-tab-row" id="exp-tabs-${stock.ticker}">
-                                <div class="exp-tab" onclick="switchExpandedChart('${stock.ticker}', '1D', this)">1D</div>
+                                <div class="exp-tab exp-tab-active" onclick="switchExpandedChart('${stock.ticker}', '1D', this)">1D</div>
                                 <div class="exp-tab" onclick="switchExpandedChart('${stock.ticker}', '1W', this)">1W</div>
-                                <div class="exp-tab exp-tab-active" onclick="switchExpandedChart('${stock.ticker}', '1M', this)">1M</div>
+                                <div class="exp-tab" onclick="switchExpandedChart('${stock.ticker}', '1M', this)">1M</div>
                                 <div class="exp-tab" onclick="switchExpandedChart('${stock.ticker}', '3M', this)">3M</div>
                                 <div class="exp-tab" onclick="switchExpandedChart('${stock.ticker}', '6M', this)">6M</div>
                                 <div class="exp-tab" onclick="switchExpandedChart('${stock.ticker}', '1Y', this)">1Y</div>
@@ -1164,7 +1164,7 @@
 
             const stockForChart = deck[deck.length - 1];
             if (stockForChart) {
-                setTimeout(() => loadExpandedChart(stockForChart.ticker, '1M'), 80);
+                setTimeout(() => loadExpandedChart(stockForChart.ticker, '1D'), 80);
             }
 
             const stock = deck[deck.length - 1];
