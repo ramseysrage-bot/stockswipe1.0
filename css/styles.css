@@ -3589,6 +3589,48 @@
         }
         #alpha-transition-symbol {
             display: none;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Cinzel', Georgia, serif;
+            font-size: 80px;
+            font-weight: 700;
+            color: #0a0a0a;
+            z-index: 2;
+            position: relative;
+            opacity: 0;
+        }
+
+        @keyframes alphaGateLeft {
+            0%   { transform: translateX(-100%); }
+            32%  { transform: translateX(0); }
+            63%  { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+        @keyframes alphaGateRight {
+            0%   { transform: translateX(100%); }
+            32%  { transform: translateX(0); }
+            63%  { transform: translateX(0); }
+            100% { transform: translateX(100%); }
+        }
+        @keyframes alphaGateSymbol {
+            0%   { opacity: 0; transform: scale(0.75); }
+            36%  { opacity: 1; transform: scale(1); }
+            62%  { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.15); }
+        }
+
+        #alpha-transition-screen.playing {
+            display: flex;
+        }
+        #alpha-transition-screen.playing #alpha-transition-left {
+            animation: alphaGateLeft 1100ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
+        }
+        #alpha-transition-screen.playing #alpha-transition-right {
+            animation: alphaGateRight 1100ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
+        }
+        #alpha-transition-screen.playing #alpha-transition-symbol {
+            display: flex;
+            animation: alphaGateSymbol 1100ms ease-in-out forwards;
         }
 
         /* ─── Alpha Screen ─── */
@@ -3688,6 +3730,20 @@
             text-align: center;
             margin-bottom: 8px;
         }
+        .alpha-price-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 7px;
+        }
+        .alpha-cad-tag {
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: #888;
+            letter-spacing: 0.07em;
+            padding-bottom: 5px;
+        }
         .alpha-price-amount {
             font-family: 'Orbitron', 'DM Mono', monospace;
             font-size: 38px;
@@ -3756,7 +3812,7 @@
             transform: translateY(14px);
         }
         .alpha-feature-row.alpha-row-visible {
-            animation: featureRowIn 720ms ease-out forwards;
+            animation: featureRowIn 1.3s ease-out forwards;
         }
 
         .alpha-feature-icon {

@@ -1332,14 +1332,33 @@
             _preAlphaActiveTab = activeNavBtn ? activeNavBtn.id : null;
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.getElementById('nav-btn-alpha').classList.add('active');
+
+            const overlay = document.getElementById('alpha-transition-screen');
             const scr = document.getElementById('alpha-screen');
-            scr.style.display = 'flex';
+
+            // Play gate reveal animation
+            overlay.classList.remove('playing');
+            overlay.style.display = 'flex';
             requestAnimationFrame(() => requestAnimationFrame(() => {
-                scr.classList.add('active');
-                startAlphaCrossfade();
-                startAlphaTaglineRotation();
-                startAlphaFeatureObserver();
+                overlay.classList.add('playing');
             }));
+
+            // Show alpha content as panels slide out (~700ms in)
+            setTimeout(() => {
+                scr.style.display = 'flex';
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    scr.classList.add('active');
+                    startAlphaCrossfade();
+                    startAlphaTaglineRotation();
+                    startAlphaFeatureObserver();
+                }));
+            }, 700);
+
+            // Hide overlay after animation completes
+            setTimeout(() => {
+                overlay.classList.remove('playing');
+                overlay.style.display = 'none';
+            }, 1150);
         }
 
         function closeAlphaScreen() {

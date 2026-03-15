@@ -63,37 +63,9 @@
                         friendData.push({ f, friendId, prof, tickerList: (saved || []).map(s => s.ticker) });
                     }
 
-                    // Batch-fetch change % from stock_editorial (same data shown in Swyped feed cards)
-                    const allUniqTickers = [...new Set(friendData.flatMap(fd => fd.tickerList))];
-                    let friendChanges = {};
-                    if (allUniqTickers.length > 0) {
-                        const { data: editRows } = await supabaseClient
-                            .from('stock_editorial')
-                            .select('ticker, change')
-                            .in('ticker', allUniqTickers);
-                        for (const row of (editRows || [])) {
-                            const pct = parseFloat(row.change);
-                            if (!isNaN(pct)) friendChanges[row.ticker] = pct;
-                        }
-                    }
-
-                    // Build HTML with avg % pill per friend
+                    // Build HTML per friend
                     for (const { f, friendId, prof, tickerList } of friendData) {
                         const uname = prof?.username || 'Unknown';
-
-                        let avgHtml = '';
-                        if (tickerList.length > 0) {
-                            const changes = tickerList.map(t => {
-                                const pct = friendChanges[t];
-                                return pct != null ? pct : null;
-                            }).filter(v => v !== null);
-                            if (changes.length > 0) {
-                                const avg = changes.reduce((a, b) => a + b, 0) / changes.length;
-                                const avgSign = avg >= 0 ? '+' : '';
-                                const avgBg = avg >= 0 ? '#00C853' : '#E53935';
-                                avgHtml = `<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:#fff;background:${avgBg};padding:3px 8px;border-radius:8px;">${avgSign}${avg.toFixed(2)}%</div>`;
-                            }
-                        }
 
                         const tickerPills = tickerList.map(t =>
                             `<div style="background:#f4f4f5;border-radius:8px;padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#0a0a0a;">${t}</div>`
@@ -105,7 +77,6 @@
                                     <div onclick="showFriendHistory('${friendId}', '${uname}', '${prof?.avatar_url || ''}')" style="display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
                                         ${avatarHTML(uname, prof?.avatar_url, 40, 13)}
                                         <div style="font-family:'DM Sans',sans-serif;font-weight:600;font-size:15px;color:#0a0a0a;">@${uname}</div>
-                                        ${avgHtml}
                                     </div>
                                     <div style="position:relative;">
                                         <button onclick="toggleFriendMenu('fmenu-${f.id}', event)" data-menu-toggle style="background:none;border:none;font-size:20px;color:#bbb;cursor:pointer;padding:2px 8px;line-height:1;font-family:'DM Sans',sans-serif;">⋮</button>
