@@ -317,6 +317,60 @@
             if (error) console.error('Google sign-in error:', error.message);
         }
 
+        let _emailAuthMode = 'signin'; // 'signin' | 'signup'
+
+        function toggleAuthMode() {
+            _emailAuthMode = _emailAuthMode === 'signin' ? 'signup' : 'signin';
+            const isSignUp = _emailAuthMode === 'signup';
+            document.getElementById('auth-confirm-password').style.display = isSignUp ? '' : 'none';
+            document.getElementById('auth-email-btn').textContent = isSignUp ? 'Create Account' : 'Sign In';
+            document.getElementById('auth-mode-label').textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
+            document.getElementById('auth-mode-toggle').textContent = isSignUp ? 'Sign In' : 'Sign Up';
+        }
+
+        async function handleEmailAuth() {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const confirmPassword = document.getElementById('auth-confirm-password').value;
+
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showToast('Please enter a valid email address.'); return;
+            }
+            if (password.length < 6) {
+                showToast('Password must be at least 6 characters.'); return;
+            }
+            if (_emailAuthMode === 'signup' && password !== confirmPassword) {
+                showToast('Passwords do not match.'); return;
+            }
+
+            const btn = document.getElementById('auth-email-btn');
+            btn.textContent = 'Please wait…';
+            btn.disabled = true;
+
+            if (_emailAuthMode === 'signup') {
+                const { error } = await supabaseClient.auth.signUp({ email, password });
+                if (error) {
+                    showToast(error.message);
+                } else {
+                    document.getElementById('email-auth-form').style.display = 'none';
+                    document.getElementById('email-confirm-text').textContent =
+                        `We sent a confirmation link to ${email}. Click it to activate your account, then come back and sign in.`;
+                    document.getElementById('email-confirm-sent').style.display = '';
+                }
+            } else {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) {
+                    showToast(error.message === 'Email not confirmed'
+                        ? 'Please confirm your email first — check your inbox.'
+                        : error.message);
+                }
+                // On success, onAuthStateChange handles everything
+            }
+
+            btn.textContent = _emailAuthMode === 'signup' ? 'Create Account' : 'Sign In';
+            btn.disabled = false;
+        }
+
         function continueAsGuest() {
             isGuest = true;
             hideAuthScreen();

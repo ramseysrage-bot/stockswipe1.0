@@ -629,7 +629,44 @@
                 Continue with Google
             </button>
 
-            <!-- Guest -->
+            <!-- Divider -->
+            <div style="display:flex;align-items:center;width:100%;gap:10px;margin-bottom:16px;">
+                <div style="flex:1;height:1px;background:#eee;"></div>
+                <span style="font-family:'DM Sans',sans-serif;font-size:12px;color:#bbb;">or</span>
+                <div style="flex:1;height:1px;background:#eee;"></div>
+            </div>
+
+            <!-- Email / Password form -->
+            <div id="email-auth-form" style="width:100%;">
+                <input id="auth-email" type="email" placeholder="Email" class="auth-input"
+                    style="width:100%;box-sizing:border-box;margin-bottom:10px;">
+                <input id="auth-password" type="password" placeholder="Password" class="auth-input"
+                    style="width:100%;box-sizing:border-box;margin-bottom:10px;">
+                <input id="auth-confirm-password" type="password" placeholder="Confirm password" class="auth-input"
+                    style="width:100%;box-sizing:border-box;margin-bottom:16px;display:none;">
+                <button id="auth-email-btn" onclick="handleEmailAuth()"
+                    style="width:100%;padding:14px;background:#00C853;border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-bottom:12px;">
+                    Sign In
+                </button>
+                <p style="font-family:'DM Sans',sans-serif;font-size:13px;color:#888;text-align:center;margin:0;">
+                    <span id="auth-mode-label">Don't have an account?</span>
+                    <button id="auth-mode-toggle" onclick="toggleAuthMode()"
+                        style="background:none;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:#00C853;cursor:pointer;padding:0;margin-left:4px;">
+                        Sign Up
+                    </button>
+                </p>
+            </div>
+
+            <!-- Email confirm sent message -->
+            <div id="email-confirm-sent" style="display:none;width:100%;text-align:center;padding:8px 0 16px;">
+                <div style="font-size:36px;margin-bottom:12px;">📬</div>
+                <div style="font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;color:#0a0a0a;margin-bottom:8px;">Check your inbox</div>
+                <div id="email-confirm-text" style="font-family:'DM Sans',sans-serif;font-size:14px;color:#888;margin-bottom:20px;line-height:1.5;"></div>
+                <button onclick="toggleAuthMode(); document.getElementById('email-confirm-sent').style.display='none'; document.getElementById('email-auth-form').style.display='';"
+                    style="background:none;border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:#00C853;cursor:pointer;">
+                    Back to Sign In
+                </button>
+            </div>
 
             <!-- Disclaimer -->
             <div
