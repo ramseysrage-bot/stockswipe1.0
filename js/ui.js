@@ -1036,45 +1036,24 @@
             }
         }
 
-        // Intraday ranges served by FMP (already in app, no proxy needed)
+        // Intraday ranges served by Twelve Data (free tier, no proxy needed)
         const _fmpIntraday = {
-            '1D': '5min',
-            '1W': '1hour',
+            '1D': { interval: '5min', outputsize: 78 },
+            '1W': { interval: '1h',   outputsize: 40 },
         };
 
-        // Fetch intraday points+timestamps from FMP for 1D and 1W
+        // Fetch intraday points+timestamps from Twelve Data for 1D and 1W
         async function _fetchFMPChart(ticker, range) {
-            const resolution = _fmpIntraday[range];
-            const url = `https://financialmodelingprep.com/api/v3/historical-chart/${resolution}/${ticker}?apikey=${FMP_KEY}`;
-            const data = await fetch(url).then(r => r.json());
-            if (!Array.isArray(data) || data.length < 2) throw new Error('No FMP data');
-
-            // FMP returns newest-first — reverse to chronological
-            const sorted = [...data].reverse();
-
-            // For 1D: keep only the most recent trading session
-            // For 1W: keep last 5 trading days
-            const now = new Date();
-            const cutoff = new Date(now);
-            if (range === '1D') {
-                // Find the most recent date that has data and keep only that day
-                const latestDate = sorted[sorted.length - 1].date.slice(0, 10);
-                const filtered = sorted.filter(r => r.date.startsWith(latestDate));
-                if (filtered.length < 2) throw new Error('Insufficient 1D data');
-                return {
-                    points: filtered.map(r => r.close),
-                    timestamps: filtered.map(r => new Date(r.date).getTime()),
-                };
-            } else {
-                // 1W: last 5 trading days worth of hourly bars
-                cutoff.setDate(cutoff.getDate() - 7);
-                const filtered = sorted.filter(r => new Date(r.date) >= cutoff);
-                if (filtered.length < 2) throw new Error('Insufficient 1W data');
-                return {
-                    points: filtered.map(r => r.close),
-                    timestamps: filtered.map(r => new Date(r.date).getTime()),
-                };
-            }
+            const { interval, outputsize } = _fmpIntraday[range];
+            const url = `https://api.twelvedata.com/time_series?symbol=${ticker}&interval=${interval}&outputsize=${outputsize}&apikey=${TWELVE_DATA_KEY}`;
+            const json = await fetch(url).then(r => r.json());
+            if (json.status === 'error' || !Array.isArray(json.values) || json.values.length < 2) throw new Error('No Twelve Data');
+            // Twelve Data returns newest-first — reverse to chronological
+            const sorted = [...json.values].reverse();
+            return {
+                points: sorted.map(v => parseFloat(v.close)),
+                timestamps: sorted.map(v => new Date(v.datetime).getTime()),
+            };
         }
 
         /**
