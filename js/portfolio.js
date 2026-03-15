@@ -333,13 +333,16 @@
             const sharpe       = parseFloat(data.stats.sharpe);
             const sortino      = parseFloat(data.stats.sortino);
             const maxDrawdown  = parseFloat(data.stats.maxDrawdown.toFixed(1));
-            const riskLabel    = volatility < 12 ? 'Low' : volatility < 20 ? 'Medium' : 'High';
-            const riskColor    = riskLabel === 'Low' ? '#00C853' : riskLabel === 'Medium' ? '#FF9800' : '#E53935';
+            const riskLabel    = volatility < 20 ? 'Low' : volatility < 40 ? 'Medium' : volatility < 60 ? 'High' : 'Very High';
+            const volColor     = volatility < 20 ? '#888' : volatility < 40 ? '#F59E0B' : volatility < 60 ? '#FF6600' : '#E53935';
+            const riskColor    = volColor;
             const retColor     = totalReturn >= 0 ? '#00C853' : '#E53935';
             const annRetColor  = annReturn >= 0 ? '#00C853' : '#E53935';
             const alphaColor   = alpha >= 0 ? '#00C853' : '#E53935';
             const sharpeColor  = sharpe > 1 ? '#00C853' : sharpe >= 0 ? '#FF9800' : '#E53935';
             const sortinoColor = sortino > 1 ? '#00C853' : sortino >= 0 ? '#FF9800' : '#E53935';
+            const chartLineColor = totalReturn >= 0 ? '#00C853' : '#E53935';
+            const chartFillColor = totalReturn >= 0 ? 'rgba(0,200,83,0.08)' : 'rgba(229,57,53,0.08)';
 
             // Build sparse x-axis labels from dates (month abbreviation every ~30 points)
             const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -447,7 +450,7 @@
                         </div>
                     </div>
                     <div class="pf-stat-card">
-                        <div class="pf-stat-val" style="color:#FF9800;">${volatility}%</div>
+                        <div class="pf-stat-val" style="color:${volColor};">${volatility}%</div>
                         <div class="pf-stat-lbl" style="display:flex;align-items:center;gap:4px;">Volatility
                             <span class="pf-tooltip-wrap" id="tip-vol" onclick="pfToggleTip('tip-vol',event)"><span class="pf-info-btn" style="width:14px;height:14px;font-size:9px;">i</span><span class="pf-tooltip-box" style="right:auto;left:50%;transform:translateX(-50%);">Annualised standard deviation of returns. Higher means more price swings.</span></span>
                         </div>
@@ -518,12 +521,12 @@
                                 {
                                     label: 'Portfolio',
                                     data: data.portfolioCurve,
-                                    borderColor: '#00C853',
-                                    backgroundColor: 'rgba(0,200,83,0.08)',
+                                    borderColor: chartLineColor,
+                                    backgroundColor: chartFillColor,
                                     borderWidth: 2.5,
                                     pointRadius: 0,
                                     pointHoverRadius: 5,
-                                    pointHoverBackgroundColor: '#00C853',
+                                    pointHoverBackgroundColor: chartLineColor,
                                     pointHoverBorderColor: '#fff',
                                     pointHoverBorderWidth: 2,
                                     fill: true,
@@ -803,19 +806,25 @@
                 headerRow.appendChild(dateDiv);
 
                 // Metrics
+                const _retC  = (pf.totalReturn || 0) >= 0 ? '#00C853' : '#E53935';
+                const _alpC  = (pf.alpha || 0) >= 0 ? '#00C853' : '#E53935';
+                const _vol   = pf.volatility || 0;
+                const _volC  = _vol < 20 ? '#888' : _vol < 40 ? '#F59E0B' : _vol < 60 ? '#FF6600' : '#E53935';
+                const _retStr = `${(pf.totalReturn || 0) >= 0 ? '+' : ''}${pf.totalReturn}%`;
+                const _alpStr = `${(pf.alpha || 0) >= 0 ? '+' : ''}${pf.alpha}%`;
                 const metricsDiv = document.createElement('div');
                 metricsDiv.innerHTML = `
                     <div style="display:flex;gap:8px;">
                         <div style="flex:1;text-align:center;background:#fff;border-radius:10px;padding:10px 4px;">
-                            <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:#00C853;">+${pf.totalReturn}%</div>
+                            <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:${_retC};">${_retStr}</div>
                             <div style="font-family:'DM Sans',sans-serif;font-size:10px;color:#aaa;margin-top:3px;">Return</div>
                         </div>
                         <div style="flex:1;text-align:center;background:#fff;border-radius:10px;padding:10px 4px;">
-                            <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:#FF9800;">${pf.volatility}%</div>
+                            <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:${_volC};">${pf.volatility}%</div>
                             <div style="font-family:'DM Sans',sans-serif;font-size:10px;color:#aaa;margin-top:3px;">Volatility</div>
                         </div>
                         <div style="flex:1;text-align:center;background:#fff;border-radius:10px;padding:10px 4px;">
-                            <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:#00C853;">+${pf.alpha}%</div>
+                            <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:${_alpC};">${_alpStr}</div>
                             <div style="font-family:'DM Sans',sans-serif;font-size:10px;color:#aaa;margin-top:3px;">Alpha</div>
                         </div>
                     </div>`;
@@ -997,12 +1006,16 @@
             const sharpe       = pf.sharpe       || 0;
             const sortino      = pf.sortino      || 0;
             const maxDrawdown  = pf.maxDrawdown  || 0;
-            const riskLabel    = volatility < 12 ? 'Low' : volatility < 20 ? 'Medium' : 'High';
-            const riskColor    = riskLabel === 'Low' ? '#00C853' : riskLabel === 'Medium' ? '#FF9800' : '#E53935';
+            const riskLabel    = volatility < 20 ? 'Low' : volatility < 40 ? 'Medium' : volatility < 60 ? 'High' : 'Very High';
+            const volColor     = volatility < 20 ? '#888' : volatility < 40 ? '#F59E0B' : volatility < 60 ? '#FF6600' : '#E53935';
+            const riskColor    = volColor;
             const retColor     = totalReturn >= 0 ? '#00C853' : '#E53935';
             const annRetColor  = annReturn >= 0 ? '#00C853' : '#E53935';
+            const alphaColor   = alpha >= 0 ? '#00C853' : '#E53935';
             const sharpeColor  = sharpe > 1 ? '#00C853' : sharpe >= 0 ? '#FF9800' : '#E53935';
             const sortinoColor = sortino > 1 ? '#00C853' : sortino >= 0 ? '#FF9800' : '#E53935';
+            const chartLineColor = totalReturn >= 0 ? '#00C853' : '#E53935';
+            const chartFillColor = totalReturn >= 0 ? 'rgba(0,200,83,0.08)' : 'rgba(229,57,53,0.08)';
 
             // Build chart data from stored real data, or empty placeholder
             const hasCurve = pf.chartDates && pf.chartDates.length > 1;
@@ -1044,7 +1057,7 @@
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:${retColor};">${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(1)}%</div><div class="pf-stat-lbl">Total Return</div></div>
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:${annRetColor};">${annReturn >= 0 ? '+' : ''}${annReturn.toFixed(1)}%</div><div class="pf-stat-lbl">Annualised</div></div>
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:${alphaColor};">${alpha >= 0 ? '+' : ''}${typeof alpha === 'number' ? alpha.toFixed(1) : alpha}%</div><div class="pf-stat-lbl">Alpha vs S&amp;P 500</div></div>
-                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#FF9800;">${volatility.toFixed(1)}%</div><div class="pf-stat-lbl">Volatility</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:${volColor};">${volatility.toFixed(1)}%</div><div class="pf-stat-lbl">Volatility</div></div>
                 </div>`;
             body.appendChild(statsWrap);
 
@@ -1085,7 +1098,7 @@
                             data: {
                                 labels: chartLabels,
                                 datasets: [
-                                    { label: 'Portfolio', data: portfolioCurve, borderColor: '#00C853', backgroundColor: 'rgba(0,200,83,0.08)', borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
+                                    { label: 'Portfolio', data: portfolioCurve, borderColor: chartLineColor, backgroundColor: chartFillColor, borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
                                     { label: 'S&P 500', data: spCurve, borderColor: '#aaa', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, borderDash: [4, 4], tension: 0.4 }
                                 ]
                             },
@@ -1155,12 +1168,16 @@
             const sharpe       = pf.sharpe       || 0;
             const sortino      = pf.sortino      || 0;
             const maxDrawdown  = pf.maxDrawdown  || 0;
-            const riskLabel    = volatility < 12 ? 'Low' : volatility < 20 ? 'Medium' : 'High';
-            const riskColor    = riskLabel === 'Low' ? '#00C853' : riskLabel === 'Medium' ? '#FF9800' : '#E53935';
+            const riskLabel    = volatility < 20 ? 'Low' : volatility < 40 ? 'Medium' : volatility < 60 ? 'High' : 'Very High';
+            const volColor     = volatility < 20 ? '#888' : volatility < 40 ? '#F59E0B' : volatility < 60 ? '#FF6600' : '#E53935';
+            const riskColor    = volColor;
             const retColor     = totalReturn >= 0 ? '#00C853' : '#E53935';
             const annRetColor  = annReturn >= 0 ? '#00C853' : '#E53935';
+            const alphaColor   = alpha >= 0 ? '#00C853' : '#E53935';
             const sharpeColor  = sharpe > 1 ? '#00C853' : sharpe >= 0 ? '#FF9800' : '#E53935';
             const sortinoColor = sortino > 1 ? '#00C853' : sortino >= 0 ? '#FF9800' : '#E53935';
+            const chartLineColor = totalReturn >= 0 ? '#00C853' : '#E53935';
+            const chartFillColor = totalReturn >= 0 ? 'rgba(0,200,83,0.08)' : 'rgba(229,57,53,0.08)';
             const palette = ['#00C853', '#2979FF', '#FF6D00', '#AA00FF', '#D50000', '#00B0FF', '#FFD600', '#64DD17'];
 
             const hasCurve = pf.chartDates && pf.chartDates.length > 1;
@@ -1202,7 +1219,7 @@
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:${retColor};">${totalReturn >= 0 ? '+' : ''}${typeof totalReturn === 'number' ? totalReturn.toFixed(1) : totalReturn}%</div><div class="pf-stat-lbl">Total Return</div></div>
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:${annRetColor};">${annReturn >= 0 ? '+' : ''}${typeof annReturn === 'number' ? annReturn.toFixed(1) : annReturn}%</div><div class="pf-stat-lbl">Annualised</div></div>
                     <div class="pf-stat-card"><div class="pf-stat-val" style="color:${alphaColor};">${alpha >= 0 ? '+' : ''}${typeof alpha === 'number' ? alpha.toFixed(1) : alpha}%</div><div class="pf-stat-lbl">Alpha vs S&amp;P 500</div></div>
-                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:#FF9800;">${typeof volatility === 'number' ? volatility.toFixed(1) : volatility}%</div><div class="pf-stat-lbl">Volatility</div></div>
+                    <div class="pf-stat-card"><div class="pf-stat-val" style="color:${volColor};">${typeof volatility === 'number' ? volatility.toFixed(1) : volatility}%</div><div class="pf-stat-lbl">Volatility</div></div>
                 </div>`;
             body.appendChild(statsWrap);
 
@@ -1242,7 +1259,7 @@
                             data: {
                                 labels: chartLabels,
                                 datasets: [
-                                    { label: 'Portfolio', data: portfolioCurve, borderColor: '#00C853', backgroundColor: 'rgba(0,200,83,0.08)', borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
+                                    { label: 'Portfolio', data: portfolioCurve, borderColor: chartLineColor, backgroundColor: chartFillColor, borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
                                     { label: 'S&P 500', data: spCurve, borderColor: '#aaa', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, borderDash: [4, 4], tension: 0.4 }
                                 ]
                             },
