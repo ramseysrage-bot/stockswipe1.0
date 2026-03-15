@@ -516,6 +516,15 @@
             } catch (e) { showToast('Could not send. Try again.'); }
         }
 
+        function _inboxDismissed() {
+            try { return new Set(JSON.parse(localStorage.getItem('inbox_dismissed_' + currentUser?.id) || '[]')); }
+            catch { return new Set(); }
+        }
+        function _dismissInboxItem(id) {
+            const s = _inboxDismissed(); s.add(String(id));
+            localStorage.setItem('inbox_dismissed_' + currentUser?.id, JSON.stringify([...s]));
+        }
+
         async function loadInbox() {
             const inbox = document.getElementById('fr-inbox');
             if (!inbox || !currentUser) return;
@@ -527,7 +536,9 @@
                     .order('created_at', { ascending: false })
                     .limit(20);
 
-                if (!msgs || msgs.length === 0) {
+                const dismissed = _inboxDismissed();
+                const visibleMsgs = (msgs || []).filter(m => !dismissed.has(String(m.id)));
+                if (visibleMsgs.length === 0) {
                     inbox.innerHTML = `<div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#bbb;padding:4px 20px 20px;">No messages yet. Share a stock with a friend!</div>`;
                     return;
                 }
@@ -540,7 +551,7 @@
 
                 inbox.innerHTML = '';
                 const frag = document.createDocumentFragment();
-                for (const msg of msgs) {
+                for (const msg of visibleMsgs) {
                     const { data: prof } = await supabaseClient
                         .from('user_profiles').select('username, avatar_url').eq('user_id', msg.sender_id).maybeSingle();
                     const uname = prof?.username || 'Someone';
@@ -582,10 +593,11 @@
                     delBtn.addEventListener('mouseleave', () => delBtn.style.color = '#666');
                     delBtn.addEventListener('touchstart', () => delBtn.style.color = '#E53935', { passive: true });
                     delBtn.addEventListener('touchend', () => delBtn.style.color = '#666', { passive: true });
-                    delBtn.addEventListener('click', async (e) => {
+                    delBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        await supabaseClient.from('messages').delete().eq('id', msg.id);
-                        loadInbox();
+                        _dismissInboxItem(msg.id);
+                        row.remove();
+                        if (!document.getElementById('fr-inbox')?.querySelector('div[style*="border-bottom"]')) loadInbox();
                     });
                     row.appendChild(delBtn);
                     if (pfData) {
@@ -685,9 +697,11 @@
             if (!currentUser) return;
             if (!confirm('Clear all inbox messages?')) return;
             try {
-                await supabaseClient.from('messages')
-                    .delete()
-                    .eq('recipient_id', currentUser.id);
+                const { data: msgs } = await supabaseClient
+                    .from('messages').select('id').eq('recipient_id', currentUser.id);
+                const s = _inboxDismissed();
+                (msgs || []).forEach(m => s.add(String(m.id)));
+                localStorage.setItem('inbox_dismissed_' + currentUser.id, JSON.stringify([...s]));
                 loadInbox();
                 updateMessagesBadge();
             } catch (e) { showToast('Could not clear inbox.'); }

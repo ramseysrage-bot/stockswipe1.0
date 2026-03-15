@@ -68,7 +68,9 @@
                     let friendPrices = {};
                     if (allUniqTickers.length > 0) {
                         try {
-                            friendPrices = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(allUniqTickers.join(',')) + '&mode=price&interval=1d&range=1d').then(r => r.json());
+                            friendPrices = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(allUniqTickers.join(',')) + '&mode=price&interval=1d&range=1d', {
+                                headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_JWT, 'apikey': SUPABASE_ANON_JWT }
+                            }).then(r => r.json());
                         } catch (_) {}
                     }
 
@@ -368,7 +370,15 @@
 
         async function removeFriend(friendshipId) {
             try {
+                // Look up the friend's user ID before deleting the friendship
+                const { data: fs } = await supabaseClient.from('friendships').select('requester_id,addressee_id').eq('id', friendshipId).maybeSingle();
                 await supabaseClient.from('friendships').delete().eq('id', friendshipId);
+                if (fs && currentUser) {
+                    const friendId = fs.requester_id === currentUser.id ? fs.addressee_id : fs.requester_id;
+                    // Delete messages in both directions so History clears on unfriend
+                    await supabaseClient.from('messages').delete().match({ sender_id: friendId, recipient_id: currentUser.id });
+                    await supabaseClient.from('messages').delete().match({ sender_id: currentUser.id, recipient_id: friendId });
+                }
                 showToast('Friend removed.');
                 renderFriends();
             } catch (e) { showToast('Something went wrong.'); }
