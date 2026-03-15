@@ -1364,13 +1364,16 @@
             const rows = scr.querySelectorAll('.alpha-feature-row');
             if (!rows.length) return;
             _alphaFeatureObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('alpha-row-visible');
-                        _alphaFeatureObserver.unobserve(entry.target);
-                    }
+                // Collect newly visible entries, sort top-to-bottom, then stagger
+                const visible = entries
+                    .filter(e => e.isIntersecting)
+                    .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+                visible.forEach((entry, i) => {
+                    entry.target.style.animationDelay = (i * 80) + 'ms';
+                    entry.target.classList.add('alpha-row-visible');
+                    _alphaFeatureObserver.unobserve(entry.target);
                 });
-            }, { root: scr, threshold: 0.15 });
+            }, { root: scr, threshold: 0.1 });
             rows.forEach(row => _alphaFeatureObserver.observe(row));
         }
 
@@ -1381,6 +1384,7 @@
             }
             document.querySelectorAll('#alpha-screen .alpha-feature-row').forEach(row => {
                 row.classList.remove('alpha-row-visible');
+                row.style.animationDelay = '';
             });
         }
 
