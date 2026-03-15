@@ -1427,7 +1427,7 @@
         function alphaNotifyMe() {
             const btn = document.getElementById('alpha-cta-btn');
             if (!btn) return;
-            btn.textContent  = "You're on the list. We'll let you know. 🚀";
+            btn.textContent  = "You're on the list. We'll let you know.";
             btn.style.fontSize = '13px';
             setTimeout(() => {
                 btn.textContent  = 'Notify Me When Alpha Launches';
