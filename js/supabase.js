@@ -349,7 +349,7 @@
             if (_emailAuthMode === 'signup') {
                 const { error } = await supabaseClient.auth.signUp({
                     email, password,
-                    options: { emailRedirectTo: 'https://www.stockswype.com/confirmed' }
+                    options: { emailRedirectTo: 'https://stockswype.com/confirmed' }
                 });
                 if (error) {
                     showToast(error.message);
