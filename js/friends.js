@@ -85,9 +85,8 @@
                             if (changes.length > 0) {
                                 const avg = changes.reduce((a, b) => a + b, 0) / changes.length;
                                 const avgSign = avg >= 0 ? '+' : '';
-                                const avgColor = avg >= 0 ? '#00C853' : '#E53935';
-                                const avgBg = avg >= 0 ? 'rgba(0,200,83,0.1)' : 'rgba(229,57,53,0.1)';
-                                avgHtml = `<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:${avgColor};background:${avgBg};padding:3px 8px;border-radius:8px;">${avgSign}${avg.toFixed(2)}%</div>`;
+                                const avgBg = avg >= 0 ? '#00C853' : '#E53935';
+                                avgHtml = `<div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:#fff;background:${avgBg};padding:3px 8px;border-radius:8px;">${avgSign}${avg.toFixed(2)}%</div>`;
                             }
                         }
 
