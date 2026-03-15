@@ -670,8 +670,8 @@
             // 1D/1W → Yahoo Finance (free intraday); 1M+ → Polygon daily aggregates
             try {
                 let points;
-                if (_yahooIntraday[range]) {
-                    const { points: closes, timestamps } = await _fetchYahooChart(ticker, range);
+                if (_fmpIntraday[range]) {
+                    const { points: closes, timestamps } = await _fetchFMPChart(ticker, range);
                     points = timestamps.map((t, i) => ({ t, y: closes[i] }));
                 } else {
                     const { from, to, mult, timespan } = _polyRange(range);
@@ -1036,25 +1036,45 @@
             }
         }
 
-        // Yahoo Finance params for intraday ranges (free, no API key needed)
-        const _yahooIntraday = {
-            '1D': { interval: '5m',  range: '1d' },
-            '1W': { interval: '60m', range: '5d' },
+        // Intraday ranges served by FMP (already in app, no proxy needed)
+        const _fmpIntraday = {
+            '1D': '5min',
+            '1W': '1hour',
         };
 
-        // Fetch points+timestamps from Yahoo Finance via corsproxy for intraday ranges
-        async function _fetchYahooChart(ticker, range) {
-            const { interval, range: r } = _yahooIntraday[range];
-            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=${interval}&range=${r}`;
-            const json = await fetch('https://corsproxy.io/?' + encodeURIComponent(url)).then(res => res.json());
-            const result = json?.chart?.result?.[0];
-            if (!result) throw new Error('No Yahoo data');
-            const timestamps = (result.timestamp || []).map(t => t * 1000);
-            const closes = result.indicators?.quote?.[0]?.close || [];
-            // Filter out null closes (market closed gaps)
-            const paired = timestamps.map((t, i) => ({ t, y: closes[i] })).filter(p => p.y != null);
-            if (paired.length < 2) throw new Error('Insufficient Yahoo data');
-            return { points: paired.map(p => p.y), timestamps: paired.map(p => p.t) };
+        // Fetch intraday points+timestamps from FMP for 1D and 1W
+        async function _fetchFMPChart(ticker, range) {
+            const resolution = _fmpIntraday[range];
+            const url = `https://financialmodelingprep.com/api/v3/historical-chart/${resolution}/${ticker}?apikey=${FMP_KEY}`;
+            const data = await fetch(url).then(r => r.json());
+            if (!Array.isArray(data) || data.length < 2) throw new Error('No FMP data');
+
+            // FMP returns newest-first — reverse to chronological
+            const sorted = [...data].reverse();
+
+            // For 1D: keep only the most recent trading session
+            // For 1W: keep last 5 trading days
+            const now = new Date();
+            const cutoff = new Date(now);
+            if (range === '1D') {
+                // Find the most recent date that has data and keep only that day
+                const latestDate = sorted[sorted.length - 1].date.slice(0, 10);
+                const filtered = sorted.filter(r => r.date.startsWith(latestDate));
+                if (filtered.length < 2) throw new Error('Insufficient 1D data');
+                return {
+                    points: filtered.map(r => r.close),
+                    timestamps: filtered.map(r => new Date(r.date).getTime()),
+                };
+            } else {
+                // 1W: last 5 trading days worth of hourly bars
+                cutoff.setDate(cutoff.getDate() - 7);
+                const filtered = sorted.filter(r => new Date(r.date) >= cutoff);
+                if (filtered.length < 2) throw new Error('Insufficient 1W data');
+                return {
+                    points: filtered.map(r => r.close),
+                    timestamps: filtered.map(r => new Date(r.date).getTime()),
+                };
+            }
         }
 
         /**
@@ -1070,9 +1090,9 @@
             }
             try {
                 let points, timestamps;
-                if (_yahooIntraday[range]) {
+                if (_fmpIntraday[range]) {
                     // 1D / 1W — use Yahoo Finance (Polygon free tier blocks intraday)
-                    ({ points, timestamps } = await _fetchYahooChart(ticker, range));
+                    ({ points, timestamps } = await _fetchFMPChart(ticker, range));
                 } else {
                     // 1M+ — use Polygon daily aggregates
                     const { from, to, mult, timespan } = _polyRange(range);
