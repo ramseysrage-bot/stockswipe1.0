@@ -1362,6 +1362,23 @@
             const inner = topCard.querySelector('.card-inner');
             if (inner) inner.scrollTop = 0;
             topCard.classList.remove('expanded');
+
+            // Reset both tab rows to 1D and reload the 1D sparkline + change %
+            const tickerEl = topCard.querySelector('.c-ticker');
+            if (tickerEl) {
+                const ticker = tickerEl.innerText.trim();
+                const expTabRow = topCard.querySelector('.exp-tab-row');
+                if (expTabRow) {
+                    expTabRow.querySelectorAll('.exp-tab').forEach(t => t.classList.remove('exp-tab-active'));
+                    const first = expTabRow.querySelector('.exp-tab');
+                    if (first) first.classList.add('exp-tab-active');
+                }
+                const spkTabRow = document.getElementById('spk-tabs-' + ticker);
+                if (spkTabRow) {
+                    const firstSpkTab = spkTabRow.querySelector('.spk-tab');
+                    if (firstSpkTab) switchSparkline(ticker, '1D', firstSpkTab);
+                }
+            }
             if (expandCardSource === 'saved') {
                 const tempCard = topCard;
                 expandCardSource = 'feed';

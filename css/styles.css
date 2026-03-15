@@ -1376,12 +1376,12 @@
             stroke: #00C853;
         }
 
-        #nav-btn-alpha {
-            color: #00C853;
+        #nav-btn-alpha,
+        #nav-btn-alpha.active {
+            color: #999;
         }
 
         #nav-btn-alpha .nav-icon {
-            color: #00C853;
             font-family: 'DM Mono', monospace;
             font-size: 20px;
         }
@@ -3714,15 +3714,7 @@
             z-index: 1;
         }
         #alpha-transition-symbol {
-            position: relative;
-            z-index: 2;
-            font-family: Georgia, 'Times New Roman', serif;
-            font-size: 38px;
-            color: #00C853;
-            transform: scale(1);
-            transition: transform 0.5s ease;
-            pointer-events: none;
-            user-select: none;
+            display: none;
         }
 
         /* ─── Alpha Screen ─── */
@@ -3772,37 +3764,33 @@
             width: 100%;
         }
         .alpha-logo-wordmark {
-            font-family: 'DM Mono', monospace;
-            font-size: 13px;
-            font-weight: 800;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            color: #0a0a0a;
-            display: block;
-            margin-bottom: 6px;
+            display: none;
         }
         .alpha-word-container {
             position: relative;
-            height: 58px;
+            height: 70px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .alpha-word {
             position: absolute;
-            font-family: 'DM Sans', sans-serif;
+            font-family: 'Orbitron', Georgia, serif;
             font-size: 48px;
             font-weight: 700;
-            color: #00C853;
-            transition: opacity 0.5s ease;
+            color: #0a0a0a;
+            text-shadow: 1px 1px 0 #000, -1px -1px 0 rgba(0,0,0,0.15);
+            transition: opacity 0.8s ease-in-out;
             opacity: 1;
         }
         .alpha-symbol-big {
             position: absolute;
-            font-family: Georgia, 'Times New Roman', serif;
+            font-family: 'Orbitron', Georgia, serif;
             font-size: 56px;
-            color: #00C853;
-            transition: opacity 0.5s ease;
+            font-weight: 700;
+            color: #0a0a0a;
+            text-shadow: 1px 1px 0 #000, 0 0 22px rgba(0,200,83,0.6), 0 0 44px rgba(0,200,83,0.25);
+            transition: opacity 0.8s ease-in-out;
             opacity: 0;
         }
         .alpha-price-block {
@@ -3810,7 +3798,7 @@
             margin-bottom: 6px;
         }
         .alpha-price-amount {
-            font-family: 'DM Mono', monospace;
+            font-family: 'Orbitron', 'DM Mono', monospace;
             font-size: 38px;
             font-weight: 500;
             color: #0a0a0a;

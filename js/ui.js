@@ -1332,40 +1332,31 @@
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.getElementById('nav-btn-alpha').classList.add('active');
             const ts   = document.getElementById('alpha-transition-screen');
-            const sym  = document.getElementById('alpha-transition-symbol');
             const left = document.getElementById('alpha-transition-left');
             const right= document.getElementById('alpha-transition-right');
             const scr  = document.getElementById('alpha-screen');
 
-            // Reset: panels off-screen, symbol small
+            // Reset: panels off-screen
             left.style.transition  = 'none';
             right.style.transition = 'none';
-            sym.style.transition   = 'none';
             left.style.transform   = 'translateX(-100%)';
             right.style.transform  = 'translateX(100%)';
-            sym.style.transform    = 'scale(1)';
             ts.style.display = 'flex';
 
-            // Scale α up to fill screen
-            requestAnimationFrame(() => requestAnimationFrame(() => {
-                sym.style.transition  = 'transform 0.5s ease';
-                sym.style.transform   = 'scale(40)';
-            }));
-
             // Slide green panels IN (covering)
-            setTimeout(() => {
+            requestAnimationFrame(() => requestAnimationFrame(() => {
                 left.style.transition  = 'transform 0.55s cubic-bezier(0.76,0,0.24,1)';
                 right.style.transition = 'transform 0.55s cubic-bezier(0.76,0,0.24,1)';
                 left.style.transform   = 'translateX(0)';
                 right.style.transform  = 'translateX(0)';
-            }, 350);
+            }));
 
             // Show alpha screen behind panels, then split panels OUT
             setTimeout(() => {
                 scr.style.display    = 'flex';
                 left.style.transform  = 'translateX(-100%)';
                 right.style.transform = 'translateX(100%)';
-            }, 920);
+            }, 570);
 
             // Fade in content, teardown overlay, start animations
             setTimeout(() => {
@@ -1373,12 +1364,11 @@
                 ts.style.display = 'none';
                 startAlphaCrossfade();
                 startAlphaTaglineRotation();
-            }, 1100);
+            }, 750);
         }
 
         function closeAlphaScreen() {
             const ts   = document.getElementById('alpha-transition-screen');
-            const sym  = document.getElementById('alpha-transition-symbol');
             const left = document.getElementById('alpha-transition-left');
             const right= document.getElementById('alpha-transition-right');
             const scr  = document.getElementById('alpha-screen');
@@ -1389,24 +1379,19 @@
             // Fade content out
             scr.classList.remove('active');
 
-            // Show overlay with panels covering + large symbol, then animate out
+            // Show overlay with panels covering, then split out
             setTimeout(() => {
-                sym.style.transition   = 'none';
-                sym.style.transform    = 'scale(40)';
                 left.style.transition  = 'none';
                 right.style.transition = 'none';
                 left.style.transform   = 'translateX(0)';
                 right.style.transform  = 'translateX(0)';
                 ts.style.display = 'flex';
 
-                // rAF×2 to commit layout before animating
                 requestAnimationFrame(() => requestAnimationFrame(() => {
                     left.style.transition  = 'transform 0.55s cubic-bezier(0.76,0,0.24,1)';
                     right.style.transition = 'transform 0.55s cubic-bezier(0.76,0,0.24,1)';
-                    sym.style.transition   = 'transform 0.5s ease 0.1s';
                     left.style.transform   = 'translateX(-100%)';
                     right.style.transform  = 'translateX(100%)';
-                    sym.style.transform    = 'scale(1)';
                 }));
             }, 200);
 
@@ -1426,18 +1411,15 @@
             const wordEl = document.getElementById('alpha-word-text');
             const symEl  = document.getElementById('alpha-symbol-text');
             if (!wordEl || !symEl) return;
-            _alphaCrossfadeTimer = setInterval(() => {
+            // One-way permanent dissolve: Alpha → α (~800ms, stays as α)
+            _alphaCrossfadeTimer = setTimeout(() => {
                 wordEl.style.opacity = '0';
                 symEl.style.opacity  = '1';
-                setTimeout(() => {
-                    wordEl.style.opacity = '1';
-                    symEl.style.opacity  = '0';
-                }, 1200);
-            }, 4000);
+            }, 600);
         }
 
         function stopAlphaCrossfade() {
-            if (_alphaCrossfadeTimer) { clearInterval(_alphaCrossfadeTimer); _alphaCrossfadeTimer = null; }
+            if (_alphaCrossfadeTimer) { clearTimeout(_alphaCrossfadeTimer); _alphaCrossfadeTimer = null; }
             const wordEl = document.getElementById('alpha-word-text');
             const symEl  = document.getElementById('alpha-symbol-text');
             if (wordEl) wordEl.style.opacity = '1';
