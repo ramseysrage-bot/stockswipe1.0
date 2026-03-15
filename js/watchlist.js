@@ -1,27 +1,43 @@
+        let _ageAccepted = false;
         let _termsAccepted = false;
 
-        function toggleTermsCheckbox() {
-            _termsAccepted = !_termsAccepted;
-            const box = document.getElementById('terms-checkbox');
-            const btn = document.getElementById('username-continue-btn');
-            const row = document.getElementById('terms-checkbox-row');
-            if (_termsAccepted) {
+        const CHECK_SVG = `<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+        function _setCheckboxState(boxId, rowId, checked) {
+            const box = document.getElementById(boxId);
+            const row = document.getElementById(rowId);
+            if (checked) {
                 box.style.background = '#00C853';
                 box.style.borderColor = '#00C853';
-                box.innerHTML = `<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-                btn.style.background = '#0a0a0a';
-                btn.style.cursor = 'pointer';
+                box.innerHTML = CHECK_SVG;
                 row.style.borderColor = '#00C853';
                 row.style.background = 'rgba(0,200,83,0.04)';
             } else {
                 box.style.background = '';
                 box.style.borderColor = '#ccc';
                 box.innerHTML = '';
-                btn.style.background = '#ccc';
-                btn.style.cursor = 'not-allowed';
                 row.style.borderColor = '#eee';
                 row.style.background = '#f8f8f8';
             }
+        }
+
+        function _updateContinueBtn() {
+            const btn = document.getElementById('username-continue-btn');
+            const allAccepted = _ageAccepted && _termsAccepted;
+            btn.style.background = allAccepted ? '#0a0a0a' : '#ccc';
+            btn.style.cursor = allAccepted ? 'pointer' : 'not-allowed';
+        }
+
+        function toggleAgeCheckbox() {
+            _ageAccepted = !_ageAccepted;
+            _setCheckboxState('age-checkbox', 'age-checkbox-row', _ageAccepted);
+            _updateContinueBtn();
+        }
+
+        function toggleTermsCheckbox() {
+            _termsAccepted = !_termsAccepted;
+            _setCheckboxState('terms-checkbox', 'terms-checkbox-row', _termsAccepted);
+            _updateContinueBtn();
         }
 
         function openInfoOverlay(type) {

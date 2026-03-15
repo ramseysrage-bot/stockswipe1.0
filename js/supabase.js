@@ -349,7 +349,7 @@
             if (_emailAuthMode === 'signup') {
                 const { error } = await supabaseClient.auth.signUp({
                     email, password,
-                    options: { emailRedirectTo: window.location.origin + window.location.pathname }
+                    options: { emailRedirectTo: 'https://www.stockswype.com/confirmed' }
                 });
                 if (error) {
                     showToast(error.message);
@@ -438,8 +438,8 @@
             const errEl = document.getElementById('pick-username-error');
             errEl.textContent = '';
 
-            if (!_termsAccepted) {
-                errEl.textContent = 'Please agree to the Terms & Conditions to continue.';
+            if (!_ageAccepted || !_termsAccepted) {
+                errEl.textContent = 'Please check both boxes to continue.';
                 return;
             }
 
