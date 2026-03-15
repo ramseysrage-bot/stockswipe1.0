@@ -1,3 +1,21 @@
+        function portfolioFillColor(context) {
+            const chart = context.chart;
+            const { ctx, chartArea, scales } = chart;
+            if (!chartArea || !scales.y) return 'rgba(0,200,83,0.08)';
+            const yZero = scales.y.getPixelForValue(0);
+            const top = chartArea.top;
+            const bottom = chartArea.bottom;
+            const ratio = Math.min(1, Math.max(0, (yZero - top) / (bottom - top)));
+            if (ratio === 0) return 'rgba(229,57,53,0.08)';
+            if (ratio === 1) return 'rgba(0,200,83,0.08)';
+            const grad = ctx.createLinearGradient(0, top, 0, bottom);
+            grad.addColorStop(0, 'rgba(0,200,83,0.08)');
+            grad.addColorStop(ratio, 'rgba(0,200,83,0.08)');
+            grad.addColorStop(ratio, 'rgba(229,57,53,0.08)');
+            grad.addColorStop(1, 'rgba(229,57,53,0.08)');
+            return grad;
+        }
+
         let _pfSelected = new Set();
         let _pfAllocs = {};
         let _pfLineChart = null;
@@ -343,8 +361,6 @@
             const sharpeColor  = sharpe > 1 ? '#00C853' : sharpe >= 0 ? '#FF9800' : '#E53935';
             const sortinoColor = sortino > 1 ? '#00C853' : sortino >= 0 ? '#FF9800' : '#E53935';
             const chartLineColor = totalReturn >= 0 ? '#00C853' : '#E53935';
-            const chartFillColor = totalReturn >= 0 ? 'rgba(0,200,83,0.08)' : 'rgba(229,57,53,0.08)';
-
             // Build sparse x-axis labels from dates (month abbreviation every ~30 points)
             const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             const chartLabels = data.dates.map((d, i) => {
@@ -524,7 +540,7 @@
                                     label: 'Portfolio',
                                     data: data.portfolioCurve,
                                     borderColor: chartLineColor,
-                                    backgroundColor: chartFillColor,
+                                    backgroundColor: portfolioFillColor,
                                     borderWidth: 2.5,
                                     pointRadius: 0,
                                     pointHoverRadius: 5,
@@ -1057,8 +1073,6 @@
             const sharpeColor  = sharpe > 1 ? '#00C853' : sharpe >= 0 ? '#FF9800' : '#E53935';
             const sortinoColor = sortino > 1 ? '#00C853' : sortino >= 0 ? '#FF9800' : '#E53935';
             const chartLineColor = totalReturn >= 0 ? '#00C853' : '#E53935';
-            const chartFillColor = totalReturn >= 0 ? 'rgba(0,200,83,0.08)' : 'rgba(229,57,53,0.08)';
-
             // Build chart data from stored real data, or empty placeholder
             const hasCurve = pf.chartDates && pf.chartDates.length > 1;
             const chartLabels = hasCurve ? pf.chartDates.map((d, i) => {
@@ -1146,7 +1160,7 @@
                             data: {
                                 labels: chartLabels,
                                 datasets: [
-                                    { label: 'Portfolio', data: portfolioCurve, borderColor: chartLineColor, backgroundColor: chartFillColor, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: chartLineColor, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, fill: true, tension: 0.4 },
+                                    { label: 'Portfolio', data: portfolioCurve, borderColor: chartLineColor, backgroundColor: portfolioFillColor, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: chartLineColor, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, fill: true, tension: 0.4 },
                                     { label: 'S&P 500', data: spCurve, borderColor: '#aaa', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#aaa', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, borderDash: [4, 4], tension: 0.4 }
                                 ]
                             },
@@ -1290,9 +1304,7 @@
             const alphaColor   = alpha >= 0 ? '#00C853' : '#E53935';
             const sharpeColor  = sharpe > 1 ? '#00C853' : sharpe >= 0 ? '#FF9800' : '#E53935';
             const sortinoColor = sortino > 1 ? '#00C853' : sortino >= 0 ? '#FF9800' : '#E53935';
-            const chartLineColor = totalReturn >= 0 ? '#00C853' : '#E53935';
-            const chartFillColor = totalReturn >= 0 ? 'rgba(0,200,83,0.08)' : 'rgba(229,57,53,0.08)';
-            const palette = ['#00C853', '#2979FF', '#FF6D00', '#AA00FF', '#D50000', '#00B0FF', '#FFD600', '#64DD17'];
+            const chartLineColor = totalReturn >= 0 ? '#00C853' : '#E53935';            const palette = ['#00C853', '#2979FF', '#FF6D00', '#AA00FF', '#D50000', '#00B0FF', '#FFD600', '#64DD17'];
 
             const hasCurve = pf.chartDates && pf.chartDates.length > 1;
             const chartLabels = hasCurve ? pf.chartDates.map((d, i) => {
@@ -1373,7 +1385,7 @@
                             data: {
                                 labels: chartLabels,
                                 datasets: [
-                                    { label: 'Portfolio', data: portfolioCurve, borderColor: chartLineColor, backgroundColor: chartFillColor, borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
+                                    { label: 'Portfolio', data: portfolioCurve, borderColor: chartLineColor, backgroundColor: portfolioFillColor, borderWidth: 2.5, pointRadius: 0, fill: true, tension: 0.4 },
                                     { label: 'S&P 500', data: spCurve, borderColor: '#aaa', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, borderDash: [4, 4], tension: 0.4 }
                                 ]
                             },

@@ -556,7 +556,7 @@
                     const labelEl = document.createElement('div');
                     labelEl.style.cssText = "font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:#0a0a0a;line-height:1.4;";
                     if (pfData) {
-                        labelEl.innerHTML = `<span style="color:#00C853;">@${uname}</span> sent you their portfolio: <span style="color:#00C853;">"${pfData.name}"</span>`;
+                        labelEl.innerHTML = `@${uname} sent you their portfolio: <span style="color:#00C853;">"${pfData.name}"</span>`;
                     } else {
                         labelEl.appendChild(document.createTextNode(isArticle ? `@${uname} sent you an article about ` : `@${uname} sent you `));
                         const tickerSpan = document.createElement('span');

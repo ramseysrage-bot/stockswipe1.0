@@ -281,7 +281,6 @@
 
                     const row = document.createElement('div');
                     row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid #f4f4f5;cursor:pointer;-webkit-tap-highlight-color:transparent;';
-                    row.innerHTML = avatarHTML(uname, avatar_url, 40, 13);
 
                     const textWrap = document.createElement('div');
                     textWrap.style.cssText = 'flex:1;min-width:0;';
