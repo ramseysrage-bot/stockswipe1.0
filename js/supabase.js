@@ -226,13 +226,11 @@
                         .eq('user_id', currentUser.id);
                     // seenTickers stays empty — fresh 7
                 } else {
-                    // Batch still active — load only PASSED stocks (saved stocks
-                    // are excluded from the feed via savedSet but don't consume daily slots)
+                    // Batch still active — load all seen stocks (both passed and saved count toward daily slots)
                     const { data: seen } = await supabaseClient
                         .from('seen_stocks')
                         .select('ticker')
-                        .eq('user_id', currentUser.id)
-                        .eq('action', 'passed');
+                        .eq('user_id', currentUser.id);
                     console.log('SEEN_STOCKS on refresh:', (seen || []).length, (seen || []).map(r => r.ticker));
                     (seen || []).forEach(r => seenTickers.add(r.ticker));
                 }
