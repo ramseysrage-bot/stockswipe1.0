@@ -1331,80 +1331,28 @@
             _preAlphaActiveTab = activeNavBtn ? activeNavBtn.id : null;
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.getElementById('nav-btn-alpha').classList.add('active');
-            const ts   = document.getElementById('alpha-transition-screen');
-            const left = document.getElementById('alpha-transition-left');
-            const right= document.getElementById('alpha-transition-right');
-            const scr  = document.getElementById('alpha-screen');
-
-            // Reset: panels off-screen
-            left.style.transition  = 'none';
-            right.style.transition = 'none';
-            left.style.transform   = 'translateX(-100%)';
-            right.style.transform  = 'translateX(100%)';
-            ts.style.display = 'flex';
-
-            // Slide green panels IN (covering)
+            const scr = document.getElementById('alpha-screen');
+            scr.style.display = 'flex';
             requestAnimationFrame(() => requestAnimationFrame(() => {
-                left.style.transition  = 'transform 0.55s cubic-bezier(0.76,0,0.24,1)';
-                right.style.transition = 'transform 0.55s cubic-bezier(0.76,0,0.24,1)';
-                left.style.transform   = 'translateX(0)';
-                right.style.transform  = 'translateX(0)';
-            }));
-
-            // Show alpha screen behind panels, then split panels OUT
-            setTimeout(() => {
-                scr.style.display    = 'flex';
-                left.style.transform  = 'translateX(-100%)';
-                right.style.transform = 'translateX(100%)';
-            }, 570);
-
-            // Fade in content, teardown overlay, start animations
-            setTimeout(() => {
                 scr.classList.add('active');
-                ts.style.display = 'none';
                 startAlphaCrossfade();
                 startAlphaTaglineRotation();
-            }, 750);
+            }));
         }
 
         function closeAlphaScreen() {
-            const ts   = document.getElementById('alpha-transition-screen');
-            const left = document.getElementById('alpha-transition-left');
-            const right= document.getElementById('alpha-transition-right');
-            const scr  = document.getElementById('alpha-screen');
-
+            const scr = document.getElementById('alpha-screen');
             stopAlphaCrossfade();
             stopAlphaTaglineRotation();
-
-            // Fade content out
             scr.classList.remove('active');
-
-            // Show overlay with panels covering, then split out
             setTimeout(() => {
-                left.style.transition  = 'none';
-                right.style.transition = 'none';
-                left.style.transform   = 'translateX(0)';
-                right.style.transform  = 'translateX(0)';
-                ts.style.display = 'flex';
-
-                requestAnimationFrame(() => requestAnimationFrame(() => {
-                    left.style.transition  = 'transform 0.55s cubic-bezier(0.76,0,0.24,1)';
-                    right.style.transition = 'transform 0.55s cubic-bezier(0.76,0,0.24,1)';
-                    left.style.transform   = 'translateX(-100%)';
-                    right.style.transform  = 'translateX(100%)';
-                }));
-            }, 200);
-
-            // Teardown + restore previous active tab
-            setTimeout(() => {
-                ts.style.display  = 'none';
                 scr.style.display = 'none';
                 document.getElementById('nav-btn-alpha').classList.remove('active');
                 if (_preAlphaActiveTab) {
                     const prev = document.getElementById(_preAlphaActiveTab);
                     if (prev) prev.classList.add('active');
                 }
-            }, 950);
+            }, 300);
         }
 
         function startAlphaCrossfade() {
