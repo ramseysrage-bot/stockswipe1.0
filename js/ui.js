@@ -1385,12 +1385,12 @@
             // Items visible on open get staggered; items reached by scrolling fire immediately
             let initialBatchIdx = 0;
             let settled = false;
-            setTimeout(() => { settled = true; }, 500);
+            setTimeout(() => { settled = true; }, 8000);
             _alphaFeatureObserver = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         const el = entry.target;
-                        el.style.animationDelay = settled ? '0ms' : (initialBatchIdx++ * 140) + 'ms';
+                        el.style.animationDelay = settled ? '0ms' : (initialBatchIdx++ * 800) + 'ms';
                         el.classList.add('alpha-row-visible');
                         _alphaFeatureObserver.unobserve(el);
                     }
