@@ -63,15 +63,22 @@
                         friendData.push({ f, friendId, prof, tickerList: (saved || []).map(s => s.ticker) });
                     }
 
-                    // Batch-fetch prices for all friends' tickers in one call
+                    // Batch-fetch prices for all friends' tickers via Finnhub (same source as Swyped feed cards)
                     const allUniqTickers = [...new Set(friendData.flatMap(fd => fd.tickerList))];
                     let friendPrices = {};
                     if (allUniqTickers.length > 0) {
-                        try {
-                            friendPrices = await fetch(EDGE_FN_URL + '?tickers=' + encodeURIComponent(allUniqTickers.join(',')) + '&mode=price&interval=1d&range=1d', {
-                                headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_JWT, 'apikey': SUPABASE_ANON_JWT }
-                            }).then(r => r.json());
-                        } catch (_) {}
+                        const results = await Promise.allSettled(
+                            allUniqTickers.map(t =>
+                                fetch(`https://finnhub.io/api/v1/quote?symbol=${t}&token=${FINNHUB_KEY}`)
+                                    .then(r => r.json())
+                                    .then(data => ({ ticker: t, c: data.c, pc: data.pc }))
+                            )
+                        );
+                        for (const r of results) {
+                            if (r.status === 'fulfilled' && r.value.c && r.value.pc) {
+                                friendPrices[r.value.ticker] = { price: r.value.c, prev: r.value.pc };
+                            }
+                        }
                     }
 
                     // Build HTML with avg % pill per friend
