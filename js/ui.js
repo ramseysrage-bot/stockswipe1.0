@@ -1440,9 +1440,11 @@
 
             const { error } = await supabaseClient
                 .from('waitlist')
-                .upsert({ email: currentUser.email }, { onConflict: 'email', ignoreDuplicates: true });
+                .insert({ email: currentUser.email });
 
-            if (error) {
+            // 23505 = unique_violation (already on waitlist) — treat as success
+            if (error && error.code !== '23505') {
+                console.error('Waitlist insert error:', error);
                 btn.textContent = 'Something went wrong. Try again.';
                 btn.style.fontSize = '13px';
                 btn.disabled = false;
