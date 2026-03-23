@@ -129,6 +129,8 @@
         function showWatchlist() {
             document.getElementById('feed').classList.remove('active');
             document.getElementById('watchlist').classList.add('active');
+            const _bb = document.getElementById('feed-bucket-bar');
+            if (_bb) _bb.style.display = 'none';
             renderWatchlist();
             fetchSavedStockPrices();
         }
@@ -136,6 +138,7 @@
         function hideWatchlist() {
             document.getElementById('watchlist').classList.remove('active');
             document.getElementById('feed').classList.add('active');
+            if (typeof updateFeedBucketBar === 'function') updateFeedBucketBar();
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.getElementById('nav-btn-home').classList.add('active');
         }
@@ -155,6 +158,12 @@
         }
 
         let wlFilter = 'All';
+        let wlBucketFilter = 'all'; // bucket id or 'all'
+
+        function setWlBucketFilter(bucketId) {
+            wlBucketFilter = bucketId;
+            renderWatchlist();
+        }
 
         function renderWatchlist() {
             const list = document.getElementById('wl-list-container');
@@ -197,8 +206,37 @@
             const avgSign = avg >= 0 ? '+' : '';
             const pnlColor = avg >= 0 ? '#00C853' : '#E53935';
 
-            // Apply filter/sort
+            // Build bucket tabs — only show buckets that have saves
+            const bucketTabsHTML = (() => {
+                if (typeof BUCKET_DATA === 'undefined') return '';
+                // Find which buckets have saves (using bucket_id on savedStocks, or fallback to universe membership)
+                const bucketsWithSaves = new Set();
+                savedStocks.forEach(s => {
+                    if (s.bucket_id) {
+                        bucketsWithSaves.add(s.bucket_id);
+                    } else {
+                        // fallback: check universe membership
+                        Object.values(BUCKET_DATA).forEach(b => {
+                            if (b.universe.has(s.ticker)) bucketsWithSaves.add(b.id);
+                        });
+                    }
+                });
+                if (bucketsWithSaves.size < 2) return '';
+                const tabs = [{ id: 'all', label: 'All', emoji: '' }];
+                Object.values(BUCKET_DATA).forEach(b => {
+                    if (bucketsWithSaves.has(b.id)) tabs.push({ id: b.id, label: b.name, emoji: b.emoji, color: b.color });
+                });
+                return `<div style="display:flex;gap:8px;padding:0 20px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;">
+                    ${tabs.map(t => `<div onclick="setWlBucketFilter('${t.id}')" style="flex-shrink:0;padding:7px 14px;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.2s;${wlBucketFilter === t.id ? `background:${t.color || '#0a0a0a'};color:#fff;` : 'background:#f5f5f5;color:#555;'}">${t.emoji ? t.emoji + ' ' : ''}${t.label}</div>`).join('')}
+                </div>`;
+            })();
+
+            // Apply bucket filter first, then sort filter
             let filtered = [...savedStocks];
+            if (wlBucketFilter !== 'all' && typeof BUCKET_DATA !== 'undefined') {
+                const b = BUCKET_DATA[wlBucketFilter];
+                if (b) filtered = filtered.filter(s => s.bucket_id === wlBucketFilter || b.universe.has(s.ticker));
+            }
             if (wlFilter === 'Gainers') filtered = filtered.filter(s => s.color === 'green');
             else if (wlFilter === 'Losers') filtered = filtered.filter(s => s.color === 'red');
             else if (wlFilter === 'A-Z') filtered.sort((a, b) => a.ticker.localeCompare(b.ticker));
@@ -208,6 +246,7 @@
                 `<div class="wl-filter-btn${wlFilter === label ? ' wl-f-active' : ''}" onclick="setWlFilter('${label}')">${label}</div>`;
 
             list.innerHTML = `
+                ${bucketTabsHTML}
                 <div class="wl-summary-card">
                     <div class="wl-sector-pills">${pillsHTML}</div>
                     <div class="wl-summary-line">Today: <strong>${gainers.length} up</strong>, ${losers.length} down</div>
@@ -358,11 +397,13 @@
             document.getElementById('saved-count').innerText = savedStocks.length;
             renderWatchlist();
             if (currentUser && !isGuest) {
-                supabaseClient.from('saved_stocks')
-                    .delete()
-                    .eq('user_id', currentUser.id)
-                    .eq('ticker', ticker)
-                    .catch(() => { });
+                (async () => {
+                    const { error } = await supabaseClient.from('saved_stocks')
+                        .delete()
+                        .eq('user_id', currentUser.id)
+                        .eq('ticker', ticker);
+                    if (error) console.error('removeFromSaved error:', error);
+                })();
             }
         }
 
@@ -664,7 +705,7 @@
                 ret1w: '0', ret1m: '0', ret6m: '0', ret1y: '0',
                 perfDesc: 'Performance data loading...',
                 sentiment: 50,
-                riskIcon: data.risk === 'High' ? '🚀' : (data.risk === 'Safe' ? '🛡️' : '⚖️'),
+                riskIcon: data.risk === 'High' ? '▲' : (data.risk === 'Safe' ? '●' : '◆'),
                 riskDesc: data.risk === 'High' ? 'High volatility growth play' : (data.risk === 'Safe' ? 'Stable blue-chip company' : 'Balanced growth potential'),
                 bullets,
                 anBuyPct: 33, anHoldPct: 33, anSellPct: 34, anStr: 'Loading...', anTarget: '-', anUpside: '-',

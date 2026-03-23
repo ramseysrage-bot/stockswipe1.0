@@ -1,3 +1,6 @@
+        let sessionSaves = []; // tracks stocks saved in current swipe session
+        let sessionWildcardSaves = []; // tracks wildcard cards saved this session
+
         function startQuiz() {
             document.getElementById('splash-screen').style.opacity = '0';
             document.getElementById('splash-screen').style.pointerEvents = 'none';
@@ -103,12 +106,24 @@
                 })();
             }
 
+            // Always show bucket recommendation after quiz — clear any stale window state
+            window.activeBucket = null;
+            window.activeBucketId = null;
+            const recommendedId = (typeof recommendTopBuckets === 'function') ? recommendTopBuckets(userProfile, 3) : null;
+            if (recommendedId && recommendedId.length) {
+                showBucketConfirmScreen(recommendedId, () => _runLoadingThenFeed());
+            } else {
+                _runLoadingThenFeed();
+            }
+        }
+
+        function _runLoadingThenFeed() {
             const loading = document.getElementById('loading');
             loading.classList.add('active');
 
             const pillsContainer = document.getElementById('loader-pills');
             pillsContainer.innerHTML = '';
-            userInterests.forEach(text => {
+            (userInterests || []).forEach(text => {
                 const pill = document.createElement('div');
                 pill.className = 'loader-pill';
                 pill.innerText = text;
@@ -135,19 +150,15 @@
                 document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
                 const homeBtn = document.getElementById('nav-btn-home');
                 if (homeBtn) homeBtn.classList.add('active');
-                // Activate nav and all scenes so they are fully clickable
                 const navEl = document.getElementById('app-nav');
                 if (navEl) {
                     navEl.classList.add('active');
                     navEl.style.pointerEvents = 'auto';
                     navEl.style.opacity = '1';
                 }
-                // Force all tab scenes to be interactable
                 ['feed', 'watchlist', 'news-scene', 'friends-scene', 'profile-scene', 'portfolio-scene'].forEach(id => {
                     const el = document.getElementById(id);
-                    if (el) {
-                        el.style.pointerEvents = 'auto';
-                    }
+                    if (el) el.style.pointerEvents = 'auto';
                 });
                 initFeed();
             }, 3500);
@@ -466,10 +477,41 @@
             return feed.slice(0, 7);
         }
 
+        // --- Streak Logic ---
+        function checkAndUpdateStreak() {
+            const uid = (currentUser && !isGuest) ? currentUser.id : 'guest';
+            const keyDate = `streak_last_date_${uid}`;
+            const keyCount = `streak_count_${uid}`;
+
+            const today = new Date().toISOString().split('T')[0];
+            const lastDate = localStorage.getItem(keyDate);
+            let count = parseInt(localStorage.getItem(keyCount) || '0', 10);
+
+            if (!lastDate) {
+                count = 1;
+            } else if (lastDate === today) {
+                // same day — no change
+            } else {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yStr = yesterday.toISOString().split('T')[0];
+                count = (lastDate === yStr) ? count + 1 : 1;
+            }
+
+            localStorage.setItem(keyCount, count);
+            localStorage.setItem(keyDate, today);
+
+            const homeEl = document.getElementById('home-streak-num');
+            if (homeEl) homeEl.textContent = count;
+            const profEl = document.getElementById('pr-streak-num');
+            if (profEl) profEl.textContent = count;
+        }
+
         // --- Feed & Swiping Logic ---
         async function initFeed() {
             if (window._feedInitialized) return;
             window._feedInitialized = true;
+            checkAndUpdateStreak();
             cleanupAuthScreens();
             updateFriendsBadge();
             updateMessagesBadge();
@@ -483,8 +525,27 @@
             navEl.classList.add('active');
             navEl.style.pointerEvents = 'auto';
 
+            sessionSaves = [];
+            sessionWildcardSaves = [];
+            window._currentWildcardBucketId = null;
             seenTickers.clear();
             await loadSeenTickers();
+            await loadActiveBucket();
+            updateFeedBucketBar();
+
+            // If user has no bucket yet (existing account, skipped quiz flow),
+            // show bucket picker before loading the feed.
+            if (!window.activeBucket && typeof showBucketConfirmScreen === 'function') {
+                const recommendedId = (userProfile && typeof recommendTopBuckets === 'function')
+                    ? recommendTopBuckets(userProfile, 3)
+                    : ['tech-titans'];
+                window._feedInitialized = false; // allow re-init after bucket is picked
+                showBucketConfirmScreen(recommendedId, () => {
+                    window._feedInitialized = false;
+                    initFeed();
+                });
+                return;
+            }
 
             try {
                 // Fetch the full pool so the ranking algorithm has enough candidates.
@@ -495,9 +556,16 @@
                     .limit(500);
 
                 if (error) console.error("Supabase error:", error);
+                window._allStocks = stocks || [];
                 const DEAD_TICKERS = new Set(['DIDI', 'RIDE', 'XELA', 'SPCE', 'BBBY', 'CLOV', 'WKHS', 'NKLA', 'ATVI', 'TWTR']);
                 const savedSet = window._savedTickerSet || new Set();
-                const fetchedStocks = (stocks || []).filter(s => !DEAD_TICKERS.has(s.ticker) && !seenTickers.has(s.ticker) && !savedSet.has(s.ticker));
+                const bucketUniverse = window.activeBucket ? window.activeBucket.universe : null;
+                const fetchedStocks = (stocks || []).filter(s =>
+                    !DEAD_TICKERS.has(s.ticker) &&
+                    !seenTickers.has(s.ticker) &&
+                    !savedSet.has(s.ticker) &&
+                    (!bucketUniverse || bucketUniverse.has(s.ticker))
+                );
                 const remainingSlots = Math.max(0, 7 - seenTickers.size);
                 console.log('seenTickers.size:', seenTickers.size, 'remainingSlots:', remainingSlots);
 
@@ -513,7 +581,38 @@
                     rankedStocks = fetchedStocks.sort(() => Math.random() - 0.5).slice(0, remainingSlots);
                 }
 
-                deck = rankedStocks.map(s => {
+                // ── Wildcard injection ────────────────────────────────────────────
+                // Replace 2 of the 7 bucket cards with picks from an adjacent bucket.
+                // Wildcards appear as card 3 and card 6 in the session (positions 2 and 5
+                // in the pre-reverse array). Only injected when bucket is active and pool
+                // has enough candidates.
+                let deckStocks = rankedStocks;
+                window._currentWildcardBucketId = null;
+                if (window.activeBucket && typeof pickAdjacentBucket === 'function' && rankedStocks.length >= 5) {
+                    const wcBucketId = pickAdjacentBucket(window.activeBucketId);
+                    const wcBucket = typeof BUCKET_DATA !== 'undefined' ? BUCKET_DATA[wcBucketId] : null;
+                    if (wcBucket) {
+                        const deckSet = new Set(rankedStocks.map(s => s.ticker));
+                        const wcPool = (stocks || []).filter(s =>
+                            !DEAD_TICKERS.has(s.ticker) &&
+                            !seenTickers.has(s.ticker) &&
+                            !savedSet.has(s.ticker) &&
+                            !deckSet.has(s.ticker) &&
+                            wcBucket.universe.has(s.ticker)
+                        );
+                        const picks = wcPool.sort(() => Math.random() - 0.5).slice(0, 2);
+                        if (picks.length === 2) {
+                            picks.forEach(s => { s._isWildcard = true; s._wildcardBucketId = wcBucketId; });
+                            const five = rankedStocks.slice(0, 5);
+                            // Layout: [b0, b1, wc0, b2, b3, wc1, b4] → reversed → wc0 is card 3, wc1 is card 6
+                            deckStocks = [five[0], five[1], picks[0], five[2], five[3], picks[1], five[4]];
+                            window._currentWildcardBucketId = wcBucketId;
+                            console.log('Wildcard bucket:', wcBucketId, 'picks:', picks.map(s => s.ticker));
+                        }
+                    }
+                }
+
+                deck = deckStocks.map(s => {
                     let chartData = {};
                     ['1D', '1W', '1M', '3M', '1Y'].forEach(r => {
                         let pts = [];
@@ -550,13 +649,22 @@
                         mcap: '-', pe: '-', ps: '-', div: '-', eps: '-', high52: '-', low52: '-', rev: '-', netInc: '-', vol: '-', beta: '-',
                         ret1w: '0', ret1m: '0', ret6m: '0', ret1y: '0', perfDesc: 'Performance data...',
                         sentiment: 50,
-                        riskIcon: s.risk === 'High' ? '🚀' : (s.risk === 'Safe' ? '🛡️' : '⚖️'),
+                        riskIcon: s.risk === 'High' ? '▲' : (s.risk === 'Safe' ? '●' : '◆'),
                         riskDesc: s.risk === 'High' ? 'High volatility growth play' : (s.risk === 'Safe' ? 'Stable blue-chip company' : 'Balanced growth potential'),
                         bullets: s.why ? (Array.isArray(s.why) ? s.why : (() => { try { return JSON.parse(s.why); } catch (e) { return [s.why]; } })()) : ['Matches your interest profile.'],
                         anBuyPct: 33, anHoldPct: 33, anSellPct: 34, anStr: 'Loading...', anTarget: '-', anUpside: '-',
-                        chartData: chartData
+                        chartData: chartData,
+                        _isWildcard: s._isWildcard || false,
+                        _wildcardBucketId: s._wildcardBucketId || null
                     };
                 }).reverse();
+
+                // Safety guard: wildcard must never be the first card shown (deck[deck.length-1])
+                if (deck.length > 1 && deck[deck.length - 1]._isWildcard) {
+                    const tmp = deck[deck.length - 1];
+                    deck[deck.length - 1] = deck[deck.length - 2];
+                    deck[deck.length - 2] = tmp;
+                }
 
                 // Restore saved stocks — use RAW stocks array (fetchedStocks has saved tickers filtered out)
                 if (window._savedTickers && window._savedTickers.length > 0) {
@@ -577,7 +685,7 @@
                             sector: (() => { try { const a = JSON.parse(s.cats || '[]'); return Array.isArray(a) ? a[0] : s.cats; } catch { return s.cats || ''; } })(),
                             price: '...', change: '...', color: 'grey',
                             analystClass: 'ab-hold', analyst: 'Hold', sentiment: 50,
-                            riskIcon: s.risk === 'High' ? '🚀' : (s.risk === 'Safe' ? '🛡️' : '⚖️'),
+                            riskIcon: s.risk === 'High' ? '▲' : (s.risk === 'Safe' ? '●' : '◆'),
                             riskDesc: s.risk === 'High' ? 'High volatility growth play' : (s.risk === 'Safe' ? 'Stable blue-chip company' : 'Balanced growth potential'),
                             bullets: s.why ? (Array.isArray(s.why) ? s.why : (() => { try { return JSON.parse(s.why); } catch { return [s.why]; } })()) : [],
                             mcap: '-', pe: '-', ps: '-', div: '-', eps: '-', high52: '-', low52: '-',
@@ -686,11 +794,18 @@
                 const priceDisplay = stock.priceLoaded ? stock.price : '<div style="width:60px;height:24px;background:#333;border-radius:12px;opacity:0.5"></div>';
                 const changeDisplay = stock.priceLoaded ? stock.change : '';
 
+                const _wcGlow = stock._isWildcard ? ';box-shadow:0 0 0 2px #FFB800,0 0 22px rgba(255,184,0,0.3)' : '';
+                const _wcBucketName = stock._isWildcard && stock._wildcardBucketId && typeof BUCKET_DATA !== 'undefined'
+                    ? (BUCKET_DATA[stock._wildcardBucketId] ? BUCKET_DATA[stock._wildcardBucketId].name : '') : '';
+                const _exBucket = stock._isExplore && stock._exploreBucketId && typeof BUCKET_DATA !== 'undefined' ? BUCKET_DATA[stock._exploreBucketId] : null;
+                const _exGlow = _exBucket ? `;box-shadow:0 0 0 2px ${_exBucket.color},0 0 22px ${_exBucket.color}40` : '';
                 const cardHTML = `
-                <div class="swipe-card" id="card-${idx}" style="z-index:${idx};transform:translateY(${_initTy}px) scale(${_initScale})">
+                <div class="swipe-card" id="card-${idx}" style="z-index:${idx};transform:translateY(${_initTy}px) scale(${_initScale})${_wcGlow}${_exGlow}">
                     <div class="card-stamp stamp-pass">BEAR</div>
                     <div class="card-stamp stamp-save">BULL</div>
                     <div class="pull-down-btn" onclick="collapseCard()">↓ Close</div>
+                    ${stock._isWildcard ? `<div style="position:absolute;top:13px;left:50%;transform:translateX(-50%);background:rgba(255,184,0,0.12);border:1px solid rgba(255,184,0,0.55);border-radius:100px;padding:3px 11px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#FFB800;letter-spacing:0.4px;z-index:10;pointer-events:none;white-space:nowrap;">✦ ${_wcBucketName}</div>` : ''}
+                    ${_exBucket ? `<div style="position:absolute;top:13px;left:50%;transform:translateX(-50%);background:${_exBucket.color}14;border:1px solid ${_exBucket.color}60;border-radius:100px;padding:3px 11px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:${_exBucket.color};letter-spacing:0.4px;z-index:10;pointer-events:none;white-space:nowrap;">Exploring ${_exBucket.name}</div>` : ''}
                     <div class="card-inner">
                         <div class="c-header" style="align-items:flex-start;position:relative;">
                             <div style="display:flex;flex-direction:row;align-items:flex-start;gap:12px;">
@@ -957,17 +1072,94 @@
                     if (logoCache[topStock.ticker] !== undefined) { applyCardLogo(); }
                     else { fetchLogo(topStock.ticker).then(applyCardLogo); }
                 }
+                // Start explore timer if top card is an explore card; clear it otherwise
+                if (topStock && topStock._isExplore) {
+                    _startExploreCardTimer(topStock._exploreBucketId);
+                } else {
+                    if (window._exploreTimer) { clearTimeout(window._exploreTimer); window._exploreTimer = null; }
+                    if (window._exploreTimerRAF) { cancelAnimationFrame(window._exploreTimerRAF); window._exploreTimerRAF = null; }
+                }
             } else {
                 resetCardState();
                 const stack = document.getElementById('card-stack');
                 if (stack) {
+                    const bucket = window.activeBucket;
+                    const savedCount = sessionSaves.length;
+                    const passedCount = (deck ? 0 : 0) + (7 - savedCount); // approximation
+                    const accentColor = bucket ? bucket.color : '#00C853';
+                    const avgUpside = sessionSaves.length
+                        ? (sessionSaves.reduce((sum, s) => sum + (parseFloat(s.anUpside) || 8), 0) / sessionSaves.length).toFixed(1)
+                        : null;
+
+                    // Wildcard upsell — shown when user saved at least 1 wildcard card
+                    let wildcardUpsellHTML = '';
+                    if (sessionWildcardSaves.length > 0 && window._currentWildcardBucketId && typeof BUCKET_DATA !== 'undefined') {
+                        const wcB = BUCKET_DATA[window._currentWildcardBucketId];
+                        if (wcB) {
+                            const wcCount = sessionWildcardSaves.length;
+                            const wcLabel = wcCount === 2 ? 'both' : 'a';
+                            wildcardUpsellHTML = `
+                            <div style="background:linear-gradient(135deg,#001a0d,#002215);border:1.5px solid #00FF88;border-radius:18px;padding:18px;margin-bottom:10px;">
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+                                    <span style="font-size:15px;color:#00FF88;">✦</span>
+                                    <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;color:#00FF88;">You saved ${wcLabel} ${wcB.name} pick${wcCount > 1 ? 's' : ''}</div>
+                                </div>
+                                <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#aaa;margin-bottom:14px;">${wcB.tagline} — looks like it caught your eye. Want to explore this bucket?</div>
+                                <button onclick="openAlphaScreen()" style="width:100%;padding:12px;background:linear-gradient(90deg,#00FF88,#00E676);border:none;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:#0a0a0a;cursor:pointer;">Explore ${wcB.name} →</button>
+                            </div>`;
+                        }
+                    }
+
                     stack.innerHTML = `
                     <canvas id="confetti-canvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>
-                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px 32px;text-align:center;">
-                        <div style="font-size:48px;margin-bottom:16px;">🎉</div>
-                        <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:22px;color:#0a0a0a;margin-bottom:8px;">You're all caught up!</div>
-                        <div style="font-family:'DM Sans',sans-serif;font-size:15px;color:#888;line-height:1.5;margin-bottom:8px;">Fresh picks arrive in</div>
-                        <div id="refresh-countdown" style="font-family:'DM Mono',monospace;font-size:28px;font-weight:700;color:#0a0a0a;margin-bottom:8px;">--:--:--</div>
+                    <div style="display:flex;flex-direction:column;width:100%;height:100%;overflow-y:auto;padding:40px 20px 32px;">
+
+                        <div style="text-align:center;margin-bottom:28px;">
+                            <div style="margin-bottom:14px;"><svg width="48" height="48" viewBox="0 0 52 52" fill="none"><circle cx="26" cy="26" r="25" stroke="${accentColor}" stroke-width="2" fill="${accentColor}15"/><path d="M16 26l7 7 13-14" stroke="${accentColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div style="font-family:'DM Sans',sans-serif;font-weight:800;font-size:24px;color:#0a0a0a;margin-bottom:4px;">Session complete</div>
+                            ${bucket ? `<div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#888;">${bucket.name} feed</div>` : ''}
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                            <div style="background:#fff;border:1.5px solid #f0f0f0;border-radius:18px;padding:18px;text-align:center;">
+                                <div style="font-family:'DM Mono',monospace;font-size:28px;font-weight:700;color:${savedCount > 0 ? accentColor : '#ccc'};">${savedCount}</div>
+                                <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#888;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">Swyped</div>
+                            </div>
+                            <div style="background:#fff;border:1.5px solid #f0f0f0;border-radius:18px;padding:18px;text-align:center;">
+                                <div style="font-family:'DM Mono',monospace;font-size:28px;font-weight:700;color:#888;">${7 - savedCount}</div>
+                                <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#888;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">Passed</div>
+                            </div>
+                        </div>
+
+                        ${bucket ? `
+                        <div style="display:grid;grid-template-columns:${avgUpside ? '1fr 1fr' : '1fr'};gap:10px;margin-bottom:10px;">
+                            <div style="background:#fff;border:1.5px solid #f0f0f0;border-radius:18px;padding:18px;text-align:center;">
+                                <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:#0a0a0a;">${bucket.sharpe_5y}</div>
+                                <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#888;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">${bucket.name} Sharpe</div>
+                            </div>
+                            ${avgUpside ? `
+                            <div style="background:#fff;border:1.5px solid #f0f0f0;border-radius:18px;padding:18px;text-align:center;">
+                                <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:${accentColor};">+${avgUpside}%</div>
+                                <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#888;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">Avg 1yr Upside</div>
+                            </div>` : ''}
+                        </div>` : ''}
+
+                        ${wildcardUpsellHTML}
+
+                        ${savedCount > 0 ? `
+                        <button onclick="showWatchlist()" style="width:100%;padding:15px;background:${accentColor};border:none;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-bottom:10px;">
+                            View ${savedCount} Swyped →
+                        </button>` : `
+                        <div style="background:#f7f7f7;border-radius:18px;padding:16px;text-align:center;margin-bottom:10px;">
+                            <div style="font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:#0a0a0a;margin-bottom:4px;">Nothing caught your eye</div>
+                            <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#888;">Try a different bucket — new picks refresh soon.</div>
+                        </div>`}
+
+                        <div style="text-align:center;margin-top:8px;margin-bottom:4px;">
+                            <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#aaa;margin-bottom:6px;">Fresh picks arrive in</div>
+                            <div id="refresh-countdown" style="font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:#0a0a0a;">--:--:--</div>
+                        </div>
+
                     </div>`;
                     // Confetti burst
                     (() => {
@@ -1111,6 +1303,8 @@
             }
 
             if (hasMoved) {
+                // Block horizontal drag on explore cards — timer dismisses them
+                if (!isExpanded && deck.length > 0 && deck[deck.length - 1]._isExplore) return;
                 topCard.style.transform = `translateX(${deltaX}px) rotate(${deltaX * 0.04}deg)`;
                 const swipeFade = Math.min(1, Math.max(0, (Math.abs(deltaX) - 10) / 40));
                 topCard.querySelector('.stamp-pass').style.opacity = deltaX < 0 ? swipeFade : 0;
@@ -1136,7 +1330,15 @@
                     expandCard();
                 }
             } else if (Math.abs(deltaX) > 80 && isExpanded === false) {
-                actionSwipe(deltaX > 0 ? 'right' : 'left');
+                if (deck.length > 0 && deck[deck.length - 1]._isExplore) {
+                    // Snap back — explore cards can't be swiped
+                    topCard.style.transition = 'transform 0.4s cubic-bezier(.34,1.56,.64,1)';
+                    topCard.style.transform = 'translateY(0) scale(1) rotate(0)';
+                    topCard.querySelector('.stamp-pass').style.opacity = 0;
+                    topCard.querySelector('.stamp-save').style.opacity = 0;
+                } else {
+                    actionSwipe(deltaX > 0 ? 'right' : 'left');
+                }
             } else {
                 if (isExpanded) {
                     if (deltaY > 60) {
@@ -1157,6 +1359,8 @@
         function expandCard() {
             if (!topCard || isExpanded) return;
             isExpanded = true;
+            const _bucketBar = document.getElementById('feed-bucket-bar');
+            if (_bucketBar) _bucketBar.style.display = 'none';
             topCard.style.transition = 'transform 0.4s cubic-bezier(.34, 1.56, .64, 1), opacity 0.4s ease, box-shadow 0.4s ease, border-radius 0.4s ease, max-height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), padding 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
             topCard.style.overflow = 'scroll';
             topCard.style.overflowY = 'scroll';
@@ -1355,6 +1559,7 @@
         function collapseCard() {
             if (!topCard || !isExpanded) return;
             isExpanded = false;
+            if (typeof updateFeedBucketBar === 'function') updateFeedBucketBar();
             topCard.style.transition = 'transform 0.4s cubic-bezier(.34, 1.56, .64, 1), opacity 0.4s ease, box-shadow 0.4s ease, border-radius 0.4s ease, max-height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), padding 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
             topCard.style.transform = 'translateY(0) scale(1) rotate(0)';
             topCard.style.overflow = 'hidden';
@@ -1422,22 +1627,26 @@
 
             if (dir === 'right') {
                 const savedStock = deck[deck.length - 1];
-                savedStocks.push(savedStock);
-                document.getElementById('saved-count').innerText = savedStocks.length;
-                showToast(`Saved ${savedStock.ticker}`);
-                if (currentUser && !isGuest) {
-                    (async () => {
-                        try {
-                            await supabaseClient.from('saved_stocks')
-                                .insert({ user_id: currentUser.id, ticker: savedStock.ticker });
-                        } catch (e) { }
-                    })();
+                if (!savedStock._isExplore) {
+                    savedStocks.push(savedStock);
+                    sessionSaves.push(savedStock);
+                    if (savedStock._isWildcard) sessionWildcardSaves.push(savedStock);
+                    document.getElementById('saved-count').innerText = savedStocks.length;
+                    showToast(`Saved ${savedStock.ticker}`);
+                    if (currentUser && !isGuest) {
+                        (async () => {
+                            try {
+                                await supabaseClient.from('saved_stocks')
+                                    .insert({ user_id: currentUser.id, ticker: savedStock.ticker, bucket_id: window.activeBucketId || null });
+                            } catch (e) { }
+                        })();
+                    }
                 }
             }
 
-            // Mark this ticker as seen regardless of swipe direction
+            // Mark this ticker as seen regardless of swipe direction (skip explore cards)
             const swipedStock = deck[deck.length - 1];
-            if (swipedStock) {
+            if (swipedStock && !swipedStock._isExplore) {
                 seenTickers.add(swipedStock.ticker);
                 if (currentUser && !isGuest) {
                     (async () => {
@@ -1459,6 +1668,211 @@
                 deck.pop();
                 _cardSwipePop = true;
                 renderStack();
+                // Auto-hide explore banner if all explore cards are gone
+                if (!deck.some(s => s._isExplore)) _dismissExploreBanner();
             }, 300);
         }
+
+        // ─── Bucket Explore Mode ───────────────────────────────────────────────────
+
+        function launchBucketExplore(bucketId) {
+            if (typeof BUCKET_DATA === 'undefined') return;
+            const bucket = BUCKET_DATA[bucketId];
+            if (!bucket) return;
+
+            // Build the info sheet
+            const existing = document.getElementById('bucket-explore-sheet');
+            if (existing) existing.remove();
+
+            const savedSet = new Set((savedStocks || []).map(s => s.ticker));
+            const pool = (window._allStocks || []).filter(s =>
+                bucket.universe.has(s.ticker) && !savedSet.has(s.ticker)
+            );
+            const pickCount = Math.min(3, pool.length);
+
+            const sheet = document.createElement('div');
+            sheet.id = 'bucket-explore-sheet';
+            sheet.style.cssText = 'position:fixed;inset:0;z-index:9000;';
+            sheet.innerHTML = `
+                <div onclick="document.getElementById('bucket-explore-sheet').remove()" style="position:absolute;inset:0;background:rgba(0,0,0,0.45);"></div>
+                <div id="bucket-explore-panel" style="position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:24px 24px 0 0;padding:28px 24px 40px;transform:translateY(100%);transition:transform 0.36s cubic-bezier(0.32,0.72,0,1);">
+                    <div style="width:36px;height:4px;background:#e0e0e0;border-radius:100px;margin:0 auto 24px;"></div>
+
+                    <!-- Header -->
+                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+                        <div style="width:52px;height:52px;border-radius:16px;background:${bucket.color}14;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            ${typeof getBucketIcon==='function'?getBucketIcon(bucketId,26,bucket.color):''}
+                        </div>
+                        <div>
+                            <div style="font-family:'DM Sans',sans-serif;font-size:20px;font-weight:800;color:#0a0a0a;line-height:1.1;">${bucket.name}</div>
+                            <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#888;margin-top:3px;">${bucket.tagline}</div>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div style="font-family:'DM Sans',sans-serif;font-size:14px;color:#444;line-height:1.55;margin-bottom:18px;">${bucket.description}</div>
+
+                    <!-- Investor type -->
+                    <div style="display:flex;align-items:flex-start;gap:10px;background:${bucket.color}0d;border-radius:12px;padding:12px 14px;margin-bottom:18px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${bucket.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:${bucket.color};font-weight:600;line-height:1.45;">${bucket.investorType || ''}</div>
+                    </div>
+
+                    <!-- Stats row -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px;">
+                        <div style="text-align:center;background:#f7f7f7;border-radius:12px;padding:10px 4px;">
+                            <div style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:${bucket.color};">+${bucket.return_5y}%</div>
+                            <div style="font-family:'DM Sans',sans-serif;font-size:9px;color:#aaa;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px;">5yr Return</div>
+                        </div>
+                        <div style="text-align:center;background:#f7f7f7;border-radius:12px;padding:10px 4px;">
+                            <div style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:#0a0a0a;">${bucket.sharpe_5y}</div>
+                            <div style="font-family:'DM Sans',sans-serif;font-size:9px;color:#aaa;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px;">Sharpe</div>
+                        </div>
+                        <div style="text-align:center;background:#f7f7f7;border-radius:12px;padding:10px 4px;">
+                            <div style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:#0a0a0a;">${bucket.universe.size}</div>
+                            <div style="font-family:'DM Sans',sans-serif;font-size:9px;color:#aaa;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px;">Stocks</div>
+                        </div>
+                    </div>
+
+                    <!-- Highlights -->
+                    ${bucket.highlights ? `
+                    <div style="margin-bottom:22px;">
+                        <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:600;color:#aaa;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;">Inside this bucket</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            ${bucket.highlights.map(t=>`<div style="background:#f2f2f2;border-radius:8px;padding:5px 10px;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:#444;">${t}</div>`).join('')}
+                            <div style="background:#f2f2f2;border-radius:8px;padding:5px 10px;font-family:'DM Sans',sans-serif;font-size:12px;color:#999;">+${bucket.universe.size-bucket.highlights.length} more</div>
+                        </div>
+                    </div>` : ''}
+
+                    <!-- CTA -->
+                    ${pickCount > 0
+                        ? `<button onclick="_launchExploreCards('${bucketId}')" style="width:100%;padding:15px;background:${bucket.color};color:#fff;border:none;border-radius:14px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:800;cursor:pointer;">See ${pickCount} pick${pickCount===1?'':'s'} from ${bucket.name} →</button>`
+                        : `<div style="text-align:center;padding:14px;font-family:'DM Sans',sans-serif;font-size:13px;color:#aaa;">No unseen stocks available in this bucket right now.</div>`
+                    }
+                </div>`;
+            document.body.appendChild(sheet);
+            requestAnimationFrame(() => {
+                document.getElementById('bucket-explore-panel').style.transform = 'translateY(0)';
+            });
+        }
+
+        function _launchExploreCards(bucketId) {
+            const sheet = document.getElementById('bucket-explore-sheet');
+            if (sheet) sheet.remove();
+
+            const bucket = BUCKET_DATA[bucketId];
+            if (!bucket) return;
+
+            const savedSet = new Set((savedStocks || []).map(s => s.ticker));
+            const DEAD = new Set(['DIDI','RIDE','XELA','SPCE','BBBY','CLOV','WKHS','NKLA','ATVI','TWTR']);
+            const pool = (window._allStocks || []).filter(s =>
+                bucket.universe.has(s.ticker) && !savedSet.has(s.ticker) && !DEAD.has(s.ticker)
+            ).sort(() => Math.random() - 0.5).slice(0, 3);
+
+            if (pool.length === 0) return;
+
+            // Remove any existing explore cards from deck
+            deck = deck.filter(s => !s._isExplore);
+
+            pool.forEach(s => {
+                const tags = s.tags ? (Array.isArray(s.tags) ? s.tags : s.tags.split(',').map(t => t.trim())) : [];
+                const bullets = s.why ? (Array.isArray(s.why) ? s.why : (() => { try { return JSON.parse(s.why); } catch { return [s.why]; } })()) : [];
+                deck.push({
+                    ticker: s.ticker, name: s.name || s.ticker,
+                    desc: s.description || '', why: s.why || '',
+                    tags, similar: s.similar || [],
+                    risk: s.risk || 'Moderate',
+                    ceo: s.ceo || '-', hq: s.hq || '-', founded: s.founded || '-',
+                    employees: s.employees || '-', bizModel: s.biz || '',
+                    short_desc: s.short_desc || '',
+                    sector: (() => { try { const a = JSON.parse(s.cats || '[]'); return Array.isArray(a) ? a[0] : s.cats; } catch { return s.cats || ''; } })(),
+                    price: '...', change: '...', color: 'grey',
+                    analystClass: 'ab-hold', analyst: 'Hold', sentiment: 50,
+                    riskIcon: s.risk === 'High' ? '▲' : (s.risk === 'Safe' ? '●' : '◆'),
+                    riskDesc: s.risk === 'High' ? 'High volatility growth play' : (s.risk === 'Safe' ? 'Stable blue-chip company' : 'Balanced growth potential'),
+                    bullets,
+                    mcap: '-', pe: '-', ps: '-', div: '-', eps: '-', high52: '-', low52: '-',
+                    rev: '-', netInc: '-', vol: '-', beta: '-',
+                    ret1w: '0', ret1m: '0', ret6m: '0', ret1y: '0', perfDesc: 'Performance data...',
+                    anBuyPct: 33, anHoldPct: 33, anSellPct: 34, anStr: 'Loading...', anTarget: '-', anUpside: '-',
+                    chartData: {},
+                    _isExplore: true, _exploreBucketId: bucketId
+                });
+            });
+
+            // Show explore banner
+            const banner = document.getElementById('explore-banner');
+            if (banner) {
+                const iconEl = document.getElementById('explore-banner-icon');
+                const labelEl = document.getElementById('explore-banner-label');
+                const subEl = document.getElementById('explore-banner-sub');
+                if (iconEl) iconEl.innerHTML = typeof getBucketIcon==='function' ? getBucketIcon(bucketId, 18, bucket.color) : '';
+                if (labelEl) labelEl.textContent = 'Exploring ' + bucket.name;
+                if (subEl) subEl.textContent = pool.length + ' pick' + (pool.length===1?'':'s') + ' · 10s per card';
+                banner.style.cssText = `display:flex;position:absolute;bottom:162px;left:16px;right:16px;z-index:20;border-radius:14px;padding:10px 14px;align-items:center;gap:8px;background:#fff;border:1.5px solid ${bucket.color}40;box-shadow:0 2px 12px rgba(0,0,0,0.08);overflow:hidden;`;
+            }
+
+            navTo('home');
+            renderStack();
+            fetchSavedStockPrices();
+        }
+
+        function _dismissExploreBanner() {
+            const banner = document.getElementById('explore-banner');
+            if (banner) banner.style.display = 'none';
+            if (window._exploreTimer) { clearTimeout(window._exploreTimer); window._exploreTimer = null; }
+            if (window._exploreTimerRAF) { cancelAnimationFrame(window._exploreTimerRAF); window._exploreTimerRAF = null; }
+        }
+
+        function dismissBucketExplore() {
+            deck = deck.filter(s => !s._isExplore);
+            _dismissExploreBanner();
+            renderStack();
+        }
+
+        function _startExploreCardTimer(bucketId) {
+            if (window._exploreTimer) clearTimeout(window._exploreTimer);
+            if (window._exploreTimerRAF) cancelAnimationFrame(window._exploreTimerRAF);
+
+            const DURATION = 10000;
+            const startMs = Date.now();
+            const bar = document.getElementById('explore-timer-bar');
+            const bucket = bucketId && typeof BUCKET_DATA !== 'undefined' ? BUCKET_DATA[bucketId] : null;
+            const barColor = bucket ? bucket.color : '#00C853';
+
+            if (bar) {
+                bar.style.background = barColor;
+                bar.style.width = '100%';
+                bar.style.transition = 'none';
+            }
+
+            function tick() {
+                const pct = Math.min(1, (Date.now() - startMs) / DURATION);
+                if (bar) bar.style.width = (100 - pct * 100) + '%';
+                if (pct < 1) window._exploreTimerRAF = requestAnimationFrame(tick);
+            }
+            window._exploreTimerRAF = requestAnimationFrame(tick);
+            window._exploreTimer = setTimeout(_dismissCurrentExploreCard, DURATION);
+        }
+
+        function _dismissCurrentExploreCard() {
+            if (window._exploreTimer) { clearTimeout(window._exploreTimer); window._exploreTimer = null; }
+            if (window._exploreTimerRAF) { cancelAnimationFrame(window._exploreTimerRAF); window._exploreTimerRAF = null; }
+            if (!topCard) return;
+            const stock = deck[deck.length - 1];
+            if (!stock || !stock._isExplore) return;
+
+            if (isExpanded) collapseCard();
+            topCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            topCard.style.opacity = '0';
+            topCard.style.transform = 'translateY(-20px) scale(0.95)';
+
+            setTimeout(() => {
+                deck.pop();
+                _cardSwipePop = false;
+                renderStack();
+                if (!deck.some(s => s._isExplore)) _dismissExploreBanner();
+            }, 500);
+        }
+
 

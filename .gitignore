@@ -1,0 +1,18 @@
+# Secret scripts — never commit keys
+generate.js
+
+# Dependencies
+node_modules/
+
+# iOS build artifacts
+ios/Pods/
+ios/build/
+ios/.build/
+ios/DerivedData/
+
+# macOS junk
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*

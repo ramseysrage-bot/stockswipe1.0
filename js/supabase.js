@@ -26,7 +26,9 @@
         // Tracks every ticker shown this session — never repeat
         const seenTickers = new Set();
         const { createClient } = supabase;
-        const supabaseClient = createClient(SUPABASE_URL.trim(), SUPABASE_KEY);
+        const supabaseClient = createClient(SUPABASE_URL.trim(), SUPABASE_KEY, {
+            auth: { detectSessionInUrl: false, persistSession: true }
+        });
         let deck = [];
         let _initialDeckRender = true;
         let savedStocks = [];
@@ -308,10 +310,14 @@
         }
 
         // IMPORTANT: redirectTo must match a URL in Supabase → Auth → Redirect URLs
+        // On iOS (Capacitor) use the custom URL scheme so the OS routes the callback back into the app.
         async function signInWithGoogle() {
+            const redirectTo = window.Capacitor?.isNativePlatform()
+                ? 'stockswype://'
+                : window.location.origin + window.location.pathname;
             const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
-                options: { redirectTo: window.location.origin + window.location.pathname }
+                options: { redirectTo }
             });
             if (error) console.error('Google sign-in error:', error.message);
         }
@@ -381,6 +387,10 @@
 
         // Central profile loader — called after any successful sign-in or session restore
         async function loadUserProfile(userId, isReturning = false) {
+            // Clear any stale bucket state from a previous session
+            window.activeBucket = null;
+            window.activeBucketId = null;
+
             const { data: saved } = await supabaseClient
                 .from('saved_stocks').select('ticker')
                 .eq('user_id', userId).order('saved_at', { ascending: true });
@@ -681,12 +691,56 @@
                         currentUser = sess.user;
                         window._feedInitialized = false;
                         cleanupAuthScreens();
-                        await loadUserProfile(sess.user.id, false);
+                        // Show logo animation immediately so nothing is blank while
+                        // loadUserProfile awaits Supabase queries
+                        showLogoSplit(async () => {
+                            try {
+                                await loadUserProfile(sess.user.id, false);
+                            } catch (e) {
+                                console.error('loadUserProfile error after sign-in:', e);
+                                currentUser = null;
+                                const splash = document.getElementById('splash-screen');
+                                splash.style.opacity = '1';
+                                splash.style.pointerEvents = 'auto';
+                            }
+                        });
                     }
                     if (event === 'SIGNED_OUT') {
                         // SIGNED_OUT is handled by signOut() directly — ignore here
                     }
                 });
+
+                // 3. Handle OAuth deep link callback on iOS (stockswype://#access_token=...)
+                if (window.Capacitor?.isNativePlatform()) {
+                    window.Capacitor.Plugins.App.addListener('appUrlOpen', async ({ url }) => {
+                        if (!url.startsWith('stockswype://')) return;
+                        const hashStr = url.includes('#') ? url.split('#')[1] : url.split('?')[1] || '';
+                        const params = new URLSearchParams(hashStr);
+                        const access_token = params.get('access_token');
+                        const refresh_token = params.get('refresh_token');
+                        if (access_token && refresh_token) {
+                            const { data: { session: oauthSess }, error: sessErr } = await supabaseClient.auth.setSession({ access_token, refresh_token });
+                            if (sessErr) { console.error('OAuth deep link session error:', sessErr.message); return; }
+                            if (!oauthSess?.user) return;
+                            // onAuthStateChange is unreliable after a deep link on iOS — drive navigation explicitly
+                            if (currentUser && currentUser.id === oauthSess.user.id) return;
+                            currentUser = oauthSess.user;
+                            window._feedInitialized = false;
+                            cleanupAuthScreens();
+                            showLogoSplit(async () => {
+                                try {
+                                    await loadUserProfile(oauthSess.user.id, false);
+                                } catch (e) {
+                                    console.error('loadUserProfile error after OAuth:', e);
+                                    currentUser = null;
+                                    const splash = document.getElementById('splash-screen');
+                                    splash.style.opacity = '1';
+                                    splash.style.pointerEvents = 'auto';
+                                }
+                            });
+                        }
+                    });
+                }
 
             } catch (err) {
                 console.error('Init error:', err);
@@ -719,14 +773,16 @@
             btn.disabled = true;
             btn.style.opacity = '0.7';
             try {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) throw new Error('No user found');
-                const uid = user.id;
-                await supabaseClient.from('user_profiles').delete().eq('user_id', uid);
-                await supabaseClient.from('saved_stocks').delete().eq('user_id', uid);
-                await supabaseClient.from('seen_stocks').delete().eq('user_id', uid);
-                await supabaseClient.from('messages').delete().or(`sender_id.eq.${uid},recipient_id.eq.${uid}`);
-                await supabaseClient.from('friendships').delete().or(`requester_id.eq.${uid},addressee_id.eq.${uid}`);
+                let { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) throw new Error('No session found');
+                const refreshed = await supabaseClient.auth.refreshSession();
+                if (refreshed.data?.session) session = refreshed.data.session;
+                const uid = session.user.id;
+                await supabaseClient.from('saved_portfolios').delete().eq('user_id', uid);
+                const { error: fnError } = await supabaseClient.functions.invoke('delete-account', {
+                    headers: { 'x-user-token': session.access_token }
+                });
+                if (fnError) throw new Error('Could not delete account. Try again.');
                 closeDeleteModal();
                 await signOut();
                 showToast('Account deleted.');

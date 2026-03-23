@@ -3,15 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self';
-        script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
-        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-        font-src https://fonts.gstatic.com;
-        img-src 'self' data: https:;
-        connect-src https://rzvrdvvzxgwccldqnxbm.supabase.co wss://rzvrdvvzxgwccldqnxbm.supabase.co https://finnhub.io https://api.polygon.io https://financialmodelingprep.com https://query1.finance.yahoo.com https://api.twelvedata.com;
-        frame-ancestors 'none';
-    ">
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -613,7 +605,7 @@
 
             <!-- Email confirm sent message -->
             <div id="email-confirm-sent" style="display:none;width:100%;text-align:center;padding:8px 0 16px;">
-                <div style="font-size:36px;margin-bottom:12px;">📬</div>
+                <div style="margin-bottom:12px;"><svg width="36" height="36" viewBox="0 0 36 36" fill="none"><rect x="3" y="9" width="30" height="20" rx="3" stroke="#0a0a0a" stroke-width="1.8" fill="none"/><path d="M3 12l15 10 15-10" stroke="#0a0a0a" stroke-width="1.8" stroke-linecap="round"/></svg></div>
                 <div style="font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;color:#0a0a0a;margin-bottom:8px;">Check your inbox</div>
                 <div id="email-confirm-text" style="font-family:'DM Sans',sans-serif;font-size:14px;color:#888;margin-bottom:8px;line-height:1.5;"></div>
                 <div style="font-family:'DM Sans',sans-serif;font-size:12px;color:#bbb;margin-bottom:20px;line-height:1.5;">Can't find it? Check your spam folder.</div>
@@ -658,7 +650,7 @@
     <div id="username-screen"
         style="position:fixed;inset:0;background:#fff;z-index:450;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;opacity:0;pointer-events:none;transition:opacity 0.3s ease;">
         <div style="width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;">
-            <div style="font-size:36px;margin-bottom:16px;">👋</div>
+            <div style="margin-bottom:16px;"><svg width="36" height="36" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="17" stroke="#00C853" stroke-width="1.8" fill="rgba(0,200,83,0.08)"/><path d="M12 18h12M18 12v12" stroke="#00C853" stroke-width="2" stroke-linecap="round"/></svg></div>
             <div
                 style="font-family:'DM Sans',sans-serif;font-size:24px;font-weight:700;color:#0a0a0a;text-align:center;margin-bottom:8px;">
                 Pick a username</div>
@@ -914,17 +906,48 @@
         <div class="loader-pills" id="loader-pills"></div>
     </div>
 
+    <!-- Bucket Confirm Screen -->
+    <div id="bucket-confirm-screen" style="position:fixed;inset:0;background:#0a0a0a;z-index:9998;display:none;flex-direction:column;overflow:hidden;transition:opacity 0.35s ease,transform 0.35s ease;opacity:0;transform:translateY(30px);"></div>
+
+    <!-- Bucket Switch Bottom Sheet -->
+    <div id="bucket-switch-overlay" onclick="closeBucketSwitch()" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9996;display:none;opacity:0;transition:opacity 0.3s ease;"></div>
+    <div id="bucket-switch-sheet" style="position:fixed;bottom:0;left:0;right:0;background:#111;border-radius:24px 24px 0 0;z-index:9997;display:none;max-height:85vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,20px);transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);"></div>
+
     <!-- Feed Screen -->
     <div id="feed" class="feed-screen">
         <div class="nav-bar">
-            <div class="nav-logo">StockSwype</div>
+            <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+                <div class="nav-logo">StockSwype</div>
+                <div style="display:flex;align-items:center;gap:3px;">
+                    <svg width="8" height="11" viewBox="0 0 10 13" fill="#ff6b2b" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C5 0 3 3.5 3 6C3 7.5 3.8 8.5 3.8 8.5C3.8 8.5 3.4 7.2 4.3 6.5C4.3 6.5 3.8 9 6 10.2C5 8.8 5.5 7.5 6.3 7C6.3 9 5 10.5 5 13C7 12 9 10 9 7.5C9 5 7.2 3.5 7.2 3.5C7.2 3.5 7.2 6 5.7 6.5C5.7 6.5 6.2 3 5 0Z"/></svg>
+                    <span id="home-streak-num" style="font-family:'DM Mono',monospace;font-size:9px;font-weight:600;color:#ff6b2b;letter-spacing:0.5px;">0</span>
+                </div>
+            </div>
             <div class="nav-pill" id="feed-count" style="position:absolute;left:50%;transform:translateX(-50%);">7 left</div>
             <div class="nav-saved" onclick="showWatchlist()">Swyped <div class="saved-count" id="saved-count">0</div>
             </div>
         </div>
-
         <div class="card-stack" id="card-stack">
             <!-- Cards injected via JS -->
+        </div>
+
+        <!-- Bucket Explore Banner -->
+        <div id="explore-banner" style="display:none;position:absolute;bottom:162px;left:16px;right:16px;z-index:20;border-radius:14px;padding:10px 14px;align-items:center;gap:8px;background:#fff;border:1.5px solid #eee;box-shadow:0 2px 16px rgba(0,0,0,0.08);overflow:hidden;">
+            <span id="explore-banner-icon" style="display:flex;align-items:center;flex-shrink:0;"></span>
+            <div style="flex:1;min-width:0;">
+                <div id="explore-banner-label" style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;color:#0a0a0a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                <div id="explore-banner-sub" style="font-family:'DM Sans',sans-serif;font-size:11px;color:#888;margin-top:1px;"></div>
+            </div>
+            <div onclick="dismissBucketExplore()" style="width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,0.07);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:13px;color:#555;">✕</div>
+            <div id="explore-timer-bar" style="position:absolute;bottom:0;left:0;height:3px;width:100%;border-radius:0 0 14px 14px;"></div>
+        </div>
+
+<div id="feed-bucket-bar" onclick="showBucketSwitchModal()" style="display:none;position:absolute;bottom:114px;left:0;right:0;justify-content:center;z-index:10;cursor:pointer;">
+            <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(0,200,83,0.1);border:1px solid rgba(0,200,83,0.25);border-radius:100px;padding:6px 14px 6px 10px;">
+                <span id="feed-bucket-icon" style="display:flex;align-items:center;line-height:0;"></span>
+                <span id="feed-bucket-label" style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;color:#00a844;"></span>
+                <span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#00C853;opacity:0.6;">· Switch ›</span>
+            </div>
         </div>
 
     </div>
@@ -1030,11 +1053,30 @@
         <!-- Landing Hub -->
         <div id="pf-hub" style="display:flex;flex-direction:column;height:100%;overflow-y:auto;">
             <div class="news-header" style="font-size:26px;font-weight:800;line-height:1.2;padding:16px 24px 10px;">
-                Portfolio Builder</div>
+                Portfolios</div>
             <div
                 style="padding:0 24px 16px;font-family:'DM Sans',sans-serif;font-size:13px;color:#888;line-height:1.65;">
                 Craft custom portfolios based on your saved stocks. Obtain historical performance and benchmark against
                 the market.</div>
+            <!-- Buckets section injected by JS -->
+            <div id="pf-buckets-section" style="display:none;padding:0 24px 20px;"></div>
+            <!-- Weekly Drop Card -->
+            <div style="padding:0 24px 20px;">
+                <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:600;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;padding:0 0 10px;">Weekly Drop</div>
+                <div style="background:#0a0a0a;border-radius:20px;padding:20px;position:relative;overflow:hidden;border:1.5px solid rgba(0,200,83,0.35);box-shadow:0 0 18px rgba(0,200,83,0.12),inset 0 0 0 1px rgba(0,200,83,0.06);">
+                    <div style="position:absolute;top:-24px;right:-24px;width:90px;height:90px;border-radius:50%;background:rgba(0,200,83,0.12);pointer-events:none;"></div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <div style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:#fff;">Hot 7</div>
+                        <div id="hot7-date" style="font-family:'DM Sans',sans-serif;font-size:12px;color:#00C853;"></div>
+                        <div id="hot7-badge" style="margin-left:auto;font-family:'DM Mono',monospace;font-size:9px;font-weight:700;padding:3px 8px;border-radius:100px;letter-spacing:0.5px;"></div>
+                    </div>
+                    <div style="font-family:'DM Sans',sans-serif;font-size:12px;color:#666;margin-bottom:14px;">High-momentum picks across all buckets</div>
+                    <div id="hot7-tickers" style="display:flex;gap:6px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+                        <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#555;">Loading…</div>
+                    </div>
+                    <button onclick="pfOpenWeeklyDrop()" style="width:100%;background:rgba(0,200,83,0.15);color:#00C853;border:1.5px solid rgba(0,200,83,0.3);border-radius:12px;padding:12px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">View Picks →</button>
+                </div>
+            </div>
             <div style="padding:0 24px;display:flex;flex-direction:column;gap:12px;">
                 <!-- Portfolio Generation -->
                 <div class="pf-hub-btn" onclick="openPfPicker()">
@@ -1122,6 +1164,7 @@
                 </div>
                 <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#888;margin-top:2px;">Pick 2–4 from your saved stocks <span style="opacity:0.6;">(up to 4)</span></div>
             </div>
+            <div id="pf-picker-chips" style="display:none;padding:0 24px 8px;"></div>
             <div id="pf-picker-list"
                 style="flex:1;overflow-y:auto;padding:0 24px;display:flex;flex-direction:column;gap:10px;">
                 <!-- Injected by JS -->
@@ -1137,19 +1180,19 @@
         <!-- Step 2: Allocation Sliders -->
         <div id="pf-sliders" style="display:none;flex-direction:column;height:100%;">
             <div style="display:flex;align-items:center;padding:0 24px 16px;gap:14px;">
-                <div onclick="openPfPicker()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←</div>
+                <div onclick="pfSlidersBack()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←</div>
                 <div>
                     <div style="font-family:'DM Sans',sans-serif;font-size:22px;font-weight:700;color:#0a0a0a;">Set
                         allocations</div>
                 </div>
             </div>
             <div style="padding:0 24px 12px;display:flex;gap:8px;">
-                <button onclick="pfEqualWeight()"
-                    style="flex:1;background:#f4f4f5;border:none;border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:#0a0a0a;cursor:pointer;">Equal
-                    Weight</button>
-                <button onclick="pfMarketCapWeight()"
-                    style="flex:1;background:#f4f4f5;border:none;border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:#0a0a0a;cursor:pointer;">Market
-                    Cap</button>
+                <button id="pf-btn-equal" onclick="pfEqualWeight()"
+                    style="flex:1;background:#f4f4f5;border:none;border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:#888;cursor:pointer;">Equal Wt</button>
+                <button id="pf-btn-mcap" onclick="pfMarketCapWeight()"
+                    style="flex:1;background:#f4f4f5;border:none;border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:#888;cursor:pointer;">Mkt Cap</button>
+                <button id="pf-btn-sharpe" onclick="pfSharpeOptimize()"
+                    style="flex:1;background:#f4f4f5;border:none;border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:#888;cursor:pointer;">Sharpe <span style="font-family:'DM Mono',monospace;color:#00C853;">α</span></button>
             </div>
             <div style="padding:0 24px 12px;">
                 <div
@@ -1172,7 +1215,7 @@
         <!-- Step 3: Results -->
         <div id="pf-results" style="display:none;flex-direction:column;height:100%;overflow-y:auto;">
             <div style="display:flex;align-items:center;padding:0 24px 16px;gap:14px;flex-shrink:0;">
-                <div onclick="openPfSliders()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←
+                <div onclick="pfResultsBack()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←
                 </div>
                 <div>
                     <div
@@ -1203,6 +1246,23 @@
             </div>
             <div id="pf-saved-list"
                 style="flex:1;overflow-y:auto;padding:0 24px 24px;display:flex;flex-direction:column;gap:12px;"></div>
+        </div>
+
+        <!-- Weekly Drop Step -->
+        <div id="pf-weekly-drop" style="display:none;flex-direction:column;height:100%;">
+            <div style="display:flex;align-items:center;padding:0 24px 16px;gap:14px;flex-shrink:0;">
+                <div onclick="pfCloseWeeklyDrop()" style="font-size:22px;cursor:pointer;color:#0a0a0a;line-height:1;">←</div>
+                <div>
+                    <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:600;letter-spacing:2px;color:#aaa;text-transform:uppercase;margin-bottom:2px;">Weekly Drop</div>
+                    <div id="pf-wd-title" style="font-family:'DM Sans',sans-serif;font-size:20px;font-weight:700;color:#0a0a0a;">Hot 7</div>
+                </div>
+            </div>
+            <div style="font-family:'DM Sans',sans-serif;font-size:13px;color:#888;padding:0 24px 16px;flex-shrink:0;line-height:1.6;">High-momentum picks curated every Monday across all buckets.</div>
+            <div id="pf-wd-list" style="flex:1;overflow-y:auto;padding:0 24px;display:flex;flex-direction:column;gap:10px;"></div>
+            <div style="padding:16px 24px 8px;background:#fff;border-top:1px solid #f0f0f0;display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+                <button onclick="pfAnalyseWeeklyDrop()" style="width:100%;background:#fff;color:#00C853;border:2px solid #00C853;border-radius:14px;padding:14px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,200,83,0.15);">Analyse Top 4 →</button>
+                <div style="text-align:center;font-family:'DM Sans',sans-serif;font-size:11px;color:#bbb;padding-bottom:4px;">Full 7-stock deep-dive · Premium at launch</div>
+            </div>
         </div>
 
         <!-- Saved Portfolio Detail View -->
@@ -1286,6 +1346,17 @@
     <div id="friends-scene" class="friends-screen">
         <div class="news-header">Friends</div>
 
+        <!-- Friend web graph -->
+        <div id="fr-graph" style="position:relative;width:100%;height:180px;overflow:hidden;flex-shrink:0;"></div>
+
+        <!-- Expand pill -->
+        <div id="fr-graph-pill" onclick="toggleFrGraph()" style="position:relative;z-index:10;display:flex;justify-content:center;align-items:center;padding:6px 0 2px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+            <div style="background:#e8e8e8;border-radius:100px;padding:4px 14px;display:flex;align-items:center;gap:5px;">
+                <span style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;color:#aaa;">Network</span>
+                <svg class="fr-pill-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.3s ease;"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+        </div>
+
         <!-- Search bar -->
         <div style="padding: 16px 20px 16px;">
             <div
@@ -1348,6 +1419,12 @@
                     Remove photo</div>
                 <div class="pr-handle" id="pr-user-email">Guest</div>
                 <div class="pr-member" id="pr-member-label">Exploring as guest</div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:0 24px 24px;">
+                <svg width="20" height="24" viewBox="0 0 10 13" fill="#ff6b2b" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C5 0 3 3.5 3 6C3 7.5 3.8 8.5 3.8 8.5C3.8 8.5 3.4 7.2 4.3 6.5C4.3 6.5 3.8 9 6 10.2C5 8.8 5.5 7.5 6.3 7C6.3 9 5 10.5 5 13C7 12 9 10 9 7.5C9 5 7.2 3.5 7.2 3.5C7.2 3.5 7.2 6 5.7 6.5C5.7 6.5 6.2 3 5 0Z"/></svg>
+                <span id="pr-streak-num" style="font-family:'DM Mono',monospace;font-size:28px;font-weight:700;color:#ff6b2b;">0</span>
+                <span style="font-family:'DM Sans',sans-serif;font-size:14px;color:#888;margin-top:4px;">day streak</span>
             </div>
 
             <div class="pr-stats">
@@ -1437,6 +1514,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase.js"></script>
+    <script src="js/buckets.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/feed.js"></script>
     <script src="js/watchlist.js"></script>
@@ -1464,7 +1542,7 @@
                     style="width:100%;background:#f4f4f5;color:#0a0a0a;border:none;border-radius:12px;padding:15px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;">Cancel</button>
             </div>
             <div id="delete-step-2" style="display:none;">
-                <div style="font-size:32px;text-align:center;margin-bottom:12px;">⚠️</div>
+                <div style="text-align:center;margin-bottom:12px;"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M16 4L2 28h28L16 4z" stroke="#E53935" stroke-width="2" stroke-linejoin="round" fill="rgba(229,57,53,0.08)"/><line x1="16" y1="13" x2="16" y2="20" stroke="#E53935" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="24" r="1.2" fill="#E53935"/></svg></div>
                 <div
                     style="font-family:'DM Sans',sans-serif;font-size:20px;font-weight:700;color:#E53935;text-align:center;margin-bottom:8px;">
                     Are you sure?</div>
@@ -1488,7 +1566,7 @@
 
     <!-- Alpha Screen -->
     <div id="alpha-screen">
-        <button class="alpha-close-btn" onclick="closeAlphaScreen()">✕</button>
+        <button class="alpha-close-btn" onclick="closeAlphaScreen()"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><line x1="3" y1="3" x2="15" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="3" x2="3" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         <div class="alpha-screen-inner">
             <div class="alpha-header">
                 <div class="alpha-hero-glow"></div>

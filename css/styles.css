@@ -3521,7 +3521,8 @@
             .bottom-nav {
                 height: auto !important;
                 padding-top: 12px !important;
-                padding-bottom: calc(env(safe-area-inset-bottom) + 16px) !important;
+                padding-bottom: calc(env(safe-area-inset-bottom) + 12px) !important;
+                align-items: flex-start !important;
             }
 
             /* Watchlist, friends, news, profile screens: same safe-area treatment */
@@ -3530,6 +3531,24 @@
             .news-screen,
             .profile-screen {
                 padding-top: env(safe-area-inset-top) !important;
+            }
+
+            /* Swyped/Watchlist: safe area already on container, remove header's hardcoded top margin */
+            .watchlist-screen {
+                padding-top: max(env(safe-area-inset-top), 54px) !important;
+            }
+            .wl-header {
+                margin-top: 0 !important;
+            }
+
+            /* Portfolio screen: clear nav bar + safe area at bottom */
+            .portfolio-screen {
+                padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+            }
+
+            /* Watchlist detail body: clear nav bar + safe area so last button isn't clipped */
+            .wl-detail-body {
+                padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
             }
         }
         /* ─── Alpha Badge ─── */

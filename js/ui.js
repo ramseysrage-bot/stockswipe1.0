@@ -79,7 +79,7 @@
             if (savedStocks.length === 0) {
                 feed.innerHTML = `
                     <div style="display:flex;flex-direction:column;align-items:center;padding-top:60px;gap:16px;">
-                        <div style="font-size:40px;">📰</div>
+                        <div style="margin-bottom:4px;"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="6" y="8" width="28" height="24" rx="3" stroke="#bbb" stroke-width="1.8" fill="none"/><line x1="11" y1="15" x2="29" y2="15" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"/><line x1="11" y1="20" x2="29" y2="20" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"/><line x1="11" y1="25" x2="22" y2="25" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"/></svg></div>
                         <div style="font-family:'DM Sans';font-size:16px;color:#555;text-align:center;padding:0 24px;">Save stocks to see their news</div>
                         <button onclick="navTo('home')" style="background:#00C853;color:#fff;border:none;border-radius:100px;padding:12px 28px;font-family:'DM Sans';font-size:15px;font-weight:600;cursor:pointer;">Go to Home</button>
                     </div>
@@ -532,7 +532,8 @@
                     delete _expChartInstances[ticker];
                 }
 
-                const labels = points.map(p => _formatLabel(p.t, range));
+                const rawLabels = points.map(p => _formatLabel(p.t, range));
+                const labels = rawLabels.map((l, i) => (i === 0 || l !== rawLabels[i - 1]) ? l : '');
                 const values = points.map(p => p.y);
 
                 // Build inline gradient via canvas context
@@ -923,7 +924,8 @@
                 gradient.addColorStop(0, lineColor + '44');
                 gradient.addColorStop(1, lineColor + '00');
 
-                const labels = timestamps.map(t => _spkLabel(t, range));
+                const rawSpkLabels = timestamps.map(t => _spkLabel(t, range));
+                const labels = rawSpkLabels.map((l, i) => (i === 0 || l !== rawSpkLabels[i - 1]) ? l : '');
 
                 _sparklineInstances[ticker] = new Chart(ctx, {
                     type: 'line',
@@ -1497,8 +1499,8 @@
             }
             document.addEventListener('visibilitychange', onVisibilityChange);
 
-            // Try to open the Wealthsimple app
-            window.location.href = 'wealthsimple://';
+            // Use window.open so Capacitor routes the custom scheme through iOS (not Safari)
+            window.open('wealthsimple://', '_blank');
 
             // If the app didn't open after 800ms, send to referral signup
             setTimeout(() => {
